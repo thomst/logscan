@@ -1,0 +1,218 @@
+#!/usr/bin/python
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2, as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+import os, argparse
+from datetime import datetime, timedelta, time
+from timeparse import ParseNofDateTimeDelta, ParseTimeDelta, ParseDate
+from logscanlib import Logs
+
+INFO = {
+    'description' : """This is a command-line-tool to get time-specific access to log-files, while rotated logfiles that are counted up (e.g. logfile.log, logfile.log.1, logfile.log.2.gz ...) are automatically taken together -also gzipped files are processed. Different date-time-formats are supported, inclusive simple timestamps as a huge number of seconds with three decimal-places, e.g. 123456789.123. Individual formats can be specified.
+    """,
+    'usage' : """
+  logscan -h
+  logscan logfile -i
+  logscan logfile [OPTIONS]
+
+exemples:
+  logscan logfile -H 4 30  or  logscan logfile -t 4 30
+                        from 4 hours and 30 minutes before last 
+                        log-entry till the end of file
+  logscan logfile -s 0105 2210 -m 50
+                        from 5.1. 22:10 o'clock till 5.1. 23:00 o'clock
+                        (50 Minutes further)
+  logscan logfile -e 23 -w 2 0 5
+                        from two weeks and 5 hours before the date of the 
+                        last entry at 23:00 o'clock till this then
+""",
+    '-i' : 'show Informations about the LOGFILE',
+    '-s' : '''If there are two VALUES the first one is interpreted as an expression for a date and the second one for a time. If there is only one VALUE it is taken as an expression for a time and the date will be supplemented with the date of the last entry of the logfile.
+VALUES can be given in various formats.
+Exemples for dates are:
+120123 --> 23.1.2012, 12:0123  --> 23.1.2012, 12-01-23  --> 23.1.2012, 20120123  --> 23.1.2012, 12-1-23  --> 23.1.2012.
+Missing values will be complement to the last possible date in the past. For the following exemples we take the 16.01.2012 as the actual date:
+03 --> 03.01.2012; 22 --> 22.12.2011; 0315 --> 15.03.2011
+Times are handled in a similar way. But when you dont get at least three numbers out of the VALUE, then the given ones are taken first as hour, second as minutes.
+For exemple: 120530, 12;5;30 or 1205-30 are all taken as 12:05:30 o'clock. 1205 or 12:05 is 12:05:00, and 12 is simple 12:00:00. You are free to use any delimiter you want. Or no delimiter. But then you have to care to use only double-digit numbers like "05".
+The datetime you get will specify the start of the output. So you can use -s with only a single digit and you get the log of the day of the last log-entry from the hour of the digit on.''',
+    '-e' : 'works the same way as --start-time, but specify the end-time of the output.',
+    '-t' : 'First N is interpreted as the number of hours, second as the number of minutes, third as the number of seconds while the second and third number is optional. All together will be interpreted as a timespan, that will be either add to the start-time if given by --start-time, or subtracted from the time where the logfile ends or if given from the specified end-time (see --start-time and --end-time). Mention that all data given by the Options --time-span, --weeks, --days, --hours, --minutes are add up to one timespan, that is used as descriped above.',
+    '-w' : 'The given Numbers are interpreted the same way as for --time-span with the difference that the first N is interpreted as the Number of weeks, second as the Number for days, then hours, minutes, seconds. Only the first N is required.',
+    '-d' : 'Same as --weeks but start with days.',
+    '-H' : 'Same as --weeks but start with hours.',
+    '-m' : 'Same as --weeks but start with minutes.',
+    '-D' : 'Print the log of a specified day.',
+    '-S' : 'use FORMATSTRING to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
+    '-g' : 'Only lines where PATTERN was found will be printed.',
+}
+
+def isfile(value):
+    """Check if value is a file and raise an Error if not.
+    """
+    if os.path.isfile(value): return value
+    else: raise argparse.ArgumentTypeError('{0} is no file'.format(value))
+
+def main():
+    """Commandline tool to get time-specific access to logfiles using logscanlib.
+    """
+    parser = argparse.ArgumentParser(
+        prog='logscan',
+        description=INFO['description'],
+        usage=INFO['usage'],
+    )
+    parser.add_argument('logfile', type=isfile)
+    parser.add_argument(
+        '-i',
+        '--info',
+        action='store_true',
+        default=False,
+        help=INFO['-i'],
+    )
+    parser.add_argument(
+        '-s',
+        '--start-time',
+        action=ParseNofDateTimeDelta,
+        nargs='+',
+        metavar='VALUE',
+        help=INFO['-s'],
+    )
+    parser.add_argument(
+        '-e',
+        '--end-time',
+        action=ParseNofDateTimeDelta,
+        nargs='+',
+        metavar='VALUE',
+        help=INFO['-e']
+    )
+    parser.add_argument(
+        '-t',
+        '--time-span',
+        action=ParseTimeDelta,
+        nargs='+',
+        default=timedelta(),
+        metavar='N',
+        help=INFO['-t']
+    )
+    parser.add_argument(
+        '-w',
+        '--weeks',
+        action=ParseTimeDelta,
+        nargs='+',
+        default=timedelta(),
+        metavar='N',
+        help=INFO['-w']
+    )
+    parser.add_argument(
+        '-d',
+        '--days',
+        action=ParseTimeDelta,
+        nargs='+',
+        default=timedelta(),
+        metavar='N',
+        help=INFO['-d']
+    )
+    parser.add_argument(
+        '-H',
+        '--hours',
+        action=ParseTimeDelta,
+        nargs='+',
+        default=timedelta(),
+        metavar='N',
+        help=INFO['-H']
+    )
+    parser.add_argument(
+        '-m',
+        '--minutes',
+        action=ParseTimeDelta,
+        nargs='+',
+        default=timedelta(),
+        metavar='N',
+        help=INFO['-m']
+    )
+    parser.add_argument(
+        '-D',
+        '--date',
+        action=ParseDate,
+        nargs='+',
+        metavar='N',
+        help=INFO['-D']
+    )
+    parser.add_argument(
+        '-S',
+        '--strf',
+        type=str,
+        metavar='FORMATSTRING',
+        help=INFO['-S']
+    )
+    parser.add_argument(
+        '-g',
+        '--grep',
+        type=str,
+        metavar='PATTERN',
+        help=INFO['-g']
+    )
+
+    args = parser.parse_args()
+    log = Logs(args.logfile, args.strf)
+    log.period()
+#    print log.end
+#    print log.start
+
+    if args.info:
+        print ''
+        print os.path.basename(log.path) + ':'
+        print '{0} files'.format(log.number_files)
+        print 'start: {0}'.format(log.start)
+        print 'end: {0}'.format(log.end)
+        print ''
+        return
+
+    if args.date:
+        start = datetime.combine(args.date, time())
+        end = datetime.combine(args.date + timedelta(days=1), time())
+    else:
+        delta = args.weeks + args.days + args.hours + args.minutes + args.time_span
+        start = args.start_time
+        styp = type(start).__name__
+        end = args.end_time
+        etyp = type(end).__name__
+
+        if styp == 'timedelta': start = log.end - start
+        elif styp == 'time': start = datetime.combine(log.end.date(), start)
+        if etyp == 'timedelta': end = log.end - end
+        elif etyp == 'time': end = datetime.combine(log.end.date(), end)
+
+        if delta:
+            if not start and not end:
+                start = log.end - delta
+                end = log.end
+            elif start and not end:
+                end = start + delta
+            elif end and not start:
+                start = end - delta
+        else:
+            if not start: start = log.start
+            if not end: end = log.end
+
+    lines = log.section(start, end)
+    if lines:
+        if args.grep: lines = [l for l in lines if args.grep in l]
+        try: print ''.join(lines)[:-1]
+        except IOError, KeyboardInterrupt: return
+    else: print 'no log between {0} and {1}'.format(start, end)
+
+if __name__ == "__main__":
+    main()
+
