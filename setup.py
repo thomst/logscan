@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup( 
     name = "logscan", 
-    version = "0.2.1", 
+    version = "0.2.2", 
     author = "Thomas Leichtfuss", 
     author_email = "thomaslfuss@gmx.de",
     url = "https://github.com/thomst/logscan",

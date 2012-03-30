@@ -104,7 +104,7 @@ class Log():
             self.get_pattern()
             if self.linetime(self.first_line): break
         if not self.pattern:
-            print "kein passendes Zeitformat verfügbar"
+            print "could not find a fitting format"
             sys.exit(1)
 
     def open(self):
@@ -149,9 +149,7 @@ class Log():
         """Get the logtime of a line.
         """
         match = self.pattern.search(line)
-        if not match:
-            self.pattern = None
-            return None
+        if not match: return None
         if self.strf == 'timestamp':
             time = datetime.fromtimestamp(float(match.group()))
         else:
