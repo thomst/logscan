@@ -1,12 +1,14 @@
 from distutils.core import setup
 
+VERSION = "0.2.3"
+
 setup( 
     name = "logscan", 
-    version = "0.2.2", 
+    version = VERSION, 
     author = "Thomas Leichtfuss", 
     author_email = "thomaslfuss@gmx.de",
     url = "https://github.com/thomst/logscan",
-    download_url = "https://github.com/downloads/thomst/logscan/logscan-0.2.1.tar.gz",
+    download_url = "https://github.com/downloads/thomst/logscan/logscan-{version}.tar.gz".format(version=VERSION),
     description = 'Command-line-tool to get time-specific access to log-files.',
     long_description = "This is a command-line-tool to get time-specific access to log-files, while rotated logfiles that are counted up (e.g. logfile.log, logfile.log.1, logfile.log.2.gz ...) are automatically taken together -also gzipped files are processed. Different date-time-formats are supported, inclusive simple timestamps as a huge number of seconds with three decimal-places, e.g. 123456789.123. Individual formats can be specified.",
     py_modules = ["logscanlib", "timeparse"],

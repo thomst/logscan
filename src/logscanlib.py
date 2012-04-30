@@ -46,7 +46,7 @@ TIME_MAP = {
 confpaths = (
     '/usr/local/etc/logscan.conf',
     '/usr/etc/logscan.conf',
-    os.path.join(os.getenv('HOME'), '.logscan.conf'),
+    os.path.join(os.getenv('HOME', '.'), '.logscan.conf'),
     'logscan.conf',
 )
 FORMATS = [
