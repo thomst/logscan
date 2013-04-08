@@ -58,7 +58,7 @@ FORMATS = [
 ]
 confpaths = [p for p in CONFPATHS if os.path.exists(p)]
 for path in confpaths:
-    with open(path) as file
+    with open(path) as file:
         formats = [f.rstrip('\n') for f in file if not re.match('[#\n ]+', f)]
         FORMATS += [f for f in formats if f not in FORMATS]
 
@@ -66,17 +66,11 @@ for path in confpaths:
 class Log():
     """Get time specific access to a logfile.
     """
-    _codes = [
-    '%Y-%m-%d %H:%M:%S',
-    '%b %d %X %Y',
-    '%b %d %X',
-    'timestamp',
-        ]
     @classmethod
-    def add_time_codes(cls, codes):
+    def add_time_codes(cls, formats):
         """Add time-codes as list.
         """
-        cls._codes += codes
+        FORMATS += formats
 
     def __init__(self, path, strf=None, pattern=None):
         self.path = path

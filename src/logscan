@@ -19,45 +19,56 @@ from timeparse import ParseNofDateTimeDelta, ParseTimeDelta, ParseDate
 from logscanlib import Logs
 
 INFO = {
-    'description' : """Logscan is a command-line-tool to get time-specific access to log-files.
+#description
+    'description' : """
+logscan is a command-line-tool to get time-specific access to log-files.
 
-Logscan can handle rotated logfiles with format "filename, filename.1, filename.2...". Also gzipped files are processed. Different date-time-formats are supported. Individual formats can be specified.
+logscan scans logs and print log-entries conditional on specified times and or durations. It can handle rotated and or gzipped logfiles and identifies different formats for timestamps of log-entries.
     """,
+#usage
     'usage' : """
   logscan -h
   logscan logfile -i
   logscan logfile [OPTIONS]
 
-exemples:
-  logscan logfile -H 4 30  or  logscan logfile -t 4 30
-                        starts 4h and 30min before last entry,
-                        ends with the last entry
-  logscan logfile -s 0105 2210 -m 50
-                        from 5. Jan 22:10h to 5. Jan 23:00h
-  logscan logfile -e 23 -w 2 0 5
-                        starts 2 weeks and 5h before 23:00h,
-                        ends at 23:00h
-                        (with date of the last entry)
+Calculation of the period works on basis of datetimes and durations:
+  no datetime; no duration:
+                        whole log is printed
+  one datetime; no duration:
+                        period goes from datetime to
+                        the end of the log
+  two datetime; no duration:
+                        period starts with the later
+                        datetime and ends with the former
+  no datetime; positive duration:
+                        from begin of the log to the end
+                        of the duration
+  no datetime; negative duration:
+                        from begin of the duration to end
+                        of the log
+  one datetime; positive duration:
+                        from datetime to end of duration
+  one datetime; negative duration:
+                        from begin of duration to datetime
 """,
+#options:
     '-i' : 'print the number of logfiles, the start- and the end-time',
-    '-s' : '''If there are two VALUES the first one is interpreted as an expression for a date and the second one for a time. If there is only one VALUE it is taken as an expression for a time and the date will be supplemented with the date of the last entry of the logfile.
-VALUES can be given in various formats.
-Exemples for dates are:
-120123 --> 23.1.2012, 12:0123  --> 23.1.2012, 12-01-23  --> 23.1.2012, 20120123  --> 23.1.2012, 12-1-23  --> 23.1.2012.
-Missing values will be complement to the last possible date in the past. For the following exemples we take the 16.01.2012 as the actual date:
-03 --> 03.01.2012; 22 --> 22.12.2011; 0315 --> 15.03.2011
-Times are handled in a similar way. But when you dont get at least three numbers out of the VALUE, then the given ones are taken first as hour, second as minutes.
-For exemple: 120530, 12;5;30 or 1205-30 are all taken as 12:05:30 o'clock. 1205 or 12:05 is 12:05:00, and 12 is simple 12:00:00. You are free to use any delimiter you want. Or no delimiter. But then you have to care to use only double-digit numbers like "05".
-The datetime you get will specify the start of the output. So you can use -s with only a single digit and you get the log of the day of the last log-entry from the hour of the digit on.''',
-    '-e' : 'works the same way as --start-time, but specify the end-time of the output.',
-    '-t' : "Specifies a duration with first N as hours, second as minutes, third as seconds. Values for minutes and seconds are optional. A duration will be interpreted as starting with the point of start-time or ending with the point of end-time. If neither a start-time nore an end-time is given, end of logfile is taken as end-time.",
-    '-w' : 'Like --time-span, but starts with weeks.',
-    '-d' : 'Like --time-span, but start with days.',
-    '-H' : 'Like --time-span, but start with hours.',
-    '-m' : 'Like --time-span, but start with minutes.',
-    '-D' : 'Print the log of a specified day.',
-    '-S' : 'use FORMATSTRING to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
+    '-d' : 'Print the log of a specified day.',
+    '-f' : 'use FORMATSTRING to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
     '-g' : 'Only lines where PATTERN was found will be printed.',
+#--time:
+    '-t' : """Specifies daytime and date. The daytime and the date should be seperated by a whitespace. Date could be omitted. In that case logscan looks for the last log-entry for the given daytime.
+The generic format for the daytime is HHMMSS. You could also use an arbitrary seperator: HH:MM:SS. (Using a seperator you don't need two-digit-values). You can omit seconds or seconds and minutes are not obliging. 0322 will be 03:22:00h or just 3 will be 03:00:00h.
+The generic format for the date is DDMMYYYY. As well you can use a seperator and one-digit-values. Also the year or the year and the month could be missing. In that case the date will be completed by the actual year and month.
+""",
+#--durations:
+    '-W' : """Specifies a duration of weeks, days, hours, minutes and seconds for the given N's in this order. Starting with weeks. Following N's are optional. To specify a 'negative' duration put a '-' in front of all N's.
+Durations can be speciefied with all upper-case-options. All given durations are taken together, so that '-D 3 0 25' is the same as '-D 3 -M 25'.
+""",
+    '-D' : 'duration with first N as days.',
+    '-H' : 'duration with first N as hours.',
+    '-M' : 'duration with first N as minutes.',
+    '-S' : 'duration with first N as seconds.',
 }
 
 def isfile(value):
@@ -83,24 +94,8 @@ def main():
         help=INFO['-i'],
     )
     parser.add_argument(
-        '-s',
-        '--start-time',
-        action=ParseNofDateTimeDelta,
-        nargs='+',
-        metavar='VALUE',
-        help=INFO['-s'],
-    )
-    parser.add_argument(
-        '-e',
-        '--end-time',
-        action=ParseNofDateTimeDelta,
-        nargs='+',
-        metavar='VALUE',
-        help=INFO['-e']
-    )
-    parser.add_argument(
         '-t',
-        '--time-span',
+        '--time',
         action=ParseTimeDelta,
         nargs='+',
         default=timedelta(),
@@ -108,22 +103,22 @@ def main():
         help=INFO['-t']
     )
     parser.add_argument(
-        '-w',
+        '-W',
         '--weeks',
         action=ParseTimeDelta,
         nargs='+',
         default=timedelta(),
         metavar='N',
-        help=INFO['-w']
+        help=INFO['-W']
     )
     parser.add_argument(
-        '-d',
+        '-D',
         '--days',
         action=ParseTimeDelta,
         nargs='+',
         default=timedelta(),
         metavar='N',
-        help=INFO['-d']
+        help=INFO['-D']
     )
     parser.add_argument(
         '-H',
@@ -135,28 +130,37 @@ def main():
         help=INFO['-H']
     )
     parser.add_argument(
-        '-m',
+        '-M',
         '--minutes',
         action=ParseTimeDelta,
         nargs='+',
         default=timedelta(),
         metavar='N',
-        help=INFO['-m']
+        help=INFO['-M']
     )
     parser.add_argument(
-        '-D',
+        '-S',
+        '--seconds',
+        action=ParseTimeDelta,
+        nargs='+',
+        default=timedelta(),
+        metavar='N',
+        help=INFO['-S']
+    )
+    parser.add_argument(
+        '-d',
         '--date',
         action=ParseDate,
         nargs='+',
         metavar='N',
-        help=INFO['-D']
+        help=INFO['-d']
     )
     parser.add_argument(
-        '-S',
+        '-f',
         '--strf',
         type=str,
         metavar='FORMATSTRING',
-        help=INFO['-S']
+        help=INFO['-f']
     )
     parser.add_argument(
         '-g',
@@ -185,7 +189,7 @@ def main():
         start = datetime.combine(args.date, time())
         end = datetime.combine(args.date + timedelta(days=1), time())
     else:
-        delta = args.weeks + args.days + args.hours + args.minutes + args.time_span
+        delta = args.weeks + args.days + args.hours + args.minutes + args.seconds
         start = args.start_time
         styp = type(start).__name__
         end = args.end_time

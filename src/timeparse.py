@@ -21,24 +21,18 @@ from argparse import ArgumentError
 
 one = re.compile('(?<!\d)(\d)(?!\d)')
 two = re.compile('(\d{2})')
-digs = re.compile('(?<!\d)(\d+)(?!\d)')
-date_keys = ('year', 'month', 'day')
-time_keys = ('hour', 'minute', 'second')
+digs = re.compile('(?<!\d)([-+]?\d+)(?![-+\d])')
 delta_keys = ('weeks', 'days', 'hours', 'minutes', 'seconds')
-datetime_keys = date_keys + time_keys
+
 
 class DeltaDateTime:
     """Gives Methods to convert strings to datetime-objects.
     """
-    def delta(self, string):
+    def string_to_delta(self, string):
         """Convert a string to a timedelta-object of the datetime-class.
         """
-        if re.match("[+-]", string): sign = string[0]
-        else: sign = ''
-        if self.dest in delta_keys: index = delta_keys.index(self.dest)
-        else: index = 2
-        delta = [int(sign + x) for x in digs.findall(string)]
-        delta = dict(zip(delta_keys[index:], delta))
+        delta = [int(x) for x in digs.findall(string)]
+        delta = dict(zip(delta_keys[delta_keys.index(self.dest):], delta))
         try: delta = datetime.timedelta(**delta)
         except: raise ArgumentError(
             self,
@@ -46,108 +40,87 @@ class DeltaDateTime:
         )
         return delta
 
-    def time(self, string):
+    def string_to_time(self, string):
         """Convert a string to a time-object of the datetime-class.
         """
         time = [int(x) for x in two.findall(one.sub('0\g<0>', string))]
-        time = dict(zip(time_keys, time))
-        try: time = datetime.time(**time)
+        try: time = datetime.time(*time)
         except: raise ArgumentError(
             self,
             '{0} could not be parsed as time'.format(string)
         )
         return time
 
-    def date(self, string, no_future=False):
+    def string_to_date(self, string):
         """Convert a string to a date-object of the datetime-class.
         """
         today = datetime.date.today()
         date = two.findall(one.sub('0\g<0>', string))
-        l = len(date)
-        if l == 4: date = [''.join(date[:2])] + date[2:]
-        elif l == 3: date[0] = (str(today.year)[:2] + date[0])
-        elif l == 2: date.insert(0, today.year)
-        elif l == 1: date = [today.year, today.month] + date
+        lenght = len(date)
+        if lenght == 4: date = date[:2] + [''.join(date[2:])]
+        elif lenght == 3: date[2] = (str(today.year)[:2] + date[2])
+        elif lenght == 2: date.append(today.year)
+        elif lenght == 1: date = date + [today.month, today.year]
         date = [int(x) for x in date]
-        date = dict(zip(date_keys, date))
-        try: date = datetime.date(**date)
+        date.reverse()
+        try: date = datetime.date(*date)
         except: raise ArgumentError(
             self,
             '{0} could not be parsed as date'.format(string)
         )
-        if no_future and date > today:
-            if l == 2: date = date.replace(year=today.year -1)
-            elif l == 1:
-                month = today.month -1
-                if month == 0: date = date.replace(year=today.year -1, month=12)
-                else: date = date.replace(month=month)
         return date
 
-    def date_time(self, date_string, time_string):
+    def strings_to_datetime(self, datestring, timestring):
         """Convert two string to a datetime-object of the datetime-class.
         """
-        date = self.date(date_string)
-        time = self.time(time_string)
+        date = self.string_to_date(datestring)
+        time = self.string_to_time(timestring)
         return datetime.datetime.combine(date, time)
+
+
 
 class ParseDateTime(argparse.Action, DeltaDateTime):
     """Parse a commandline-argument to a datetime.datetime-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
-        date_time = self.date_time(values[0], values[1])
+        date_time = self.strings_to_datetime(values[0], values[1])
         setattr(namespace, self.dest, date_time)
+
 
 class ParseDate(argparse.Action, DeltaDateTime):
     """Parse a commandline-argument to a datetime.date-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         values = ' '.join(list(values))
-        date = self.date(values)
+        date = self.string_to_date(values)
         setattr(namespace, self.dest, date)
+
 
 class ParseTime(argparse.Action, DeltaDateTime):
     """Parse a commandline-argument to a datetime.time-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         values = ' '.join(list(values))
-        time = self.time(values)
+        time = self.string_to_time(values)
         setattr(namespace, self.dest, date)
+
 
 class ParseTimeDelta(argparse.Action, DeltaDateTime):
     """Parse a commandline-argument to a datetime.timedelta-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         values = ' '.join(list(values))
-        delta = self.delta(values)
+        delta = self.string_to_delta(values)
         setattr(namespace, self.dest, delta)
 
-class ParseDateTimeDelta(argparse.Action, DeltaDateTime):
-    """Parse an argument to either a timedelta-, time or datetime-object.
-    """
-    def __call__(self, parser, namespace, values, option_string=None):
-        if re.match('[-+]', values[0]):
-            delta = self.delta(' '.join(values))
-            setattr(namespace, self.dest, delta)
-        elif len(values) == 1:
-            time = self.time(values[0])
-            setattr(namespace, self.dest, time)
-        elif len(values) == 2:
-            date_time = self.date_time(values[0], values[1])
-            setattr(namespace, self.dest, date_time)
 
-class ParseNofDateTimeDelta(argparse.Action, DeltaDateTime):
+class ParseDateTimeOrTime(argparse.Action, DeltaDateTime):
     """Parse an argument to either a timedelta-, time or datetime-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
-        if re.match('[-+]', values[0]):
-            delta = self.delta(' '.join(values))
-            setattr(namespace, self.dest, delta)
-        elif len(values) == 1:
-            time = self.time(values[0])
-            setattr(namespace, self.dest, time)
-        elif len(values) == 2:
-            date = self.date(values[0], no_future=True)
-            time = self.time(values[1])
-            date_time = datetime.datetime.combine(date, time)
-            setattr(namespace, self.dest, date_time)
+        if len(values) == 1: obj = self.string_to_time(values[0])
+        elif len(values) == 2: obj = self.strings_to_datetime(values[0], values[1])
+        setattr(namespace, self.dest, obj)
+
+
 
