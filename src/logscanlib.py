@@ -42,8 +42,9 @@ TIME_MAP = {
     '%X' : '(?P<X>(\d{2}:){2}\d{2})',
     '%%' : '%',
     'timestamp' : '(?P<S>\d{10}\.\d{3})',
+#    '%s' : '(?P<s>\d{10})',    # TODO: not yet tested
 }
-confpaths = (
+CONFPATHS = (
     '/usr/local/etc/logscan.conf',
     '/usr/etc/logscan.conf',
     os.path.join(os.getenv('HOME', '.'), '.logscan.conf'),
@@ -55,16 +56,28 @@ FORMATS = [
     '%b %d %X',
     'timestamp',
 ]
-confpaths = [p for p in confpaths if os.path.exists(p)]
+confpaths = [p for p in CONFPATHS if os.path.exists(p)]
 for path in confpaths:
-    conf_file = open(path)
-    formats = [f.rstrip('\n') for f in conf_file if not re.match('[#\n ]+', f)]
-    FORMATS += [f for f in formats if f not in FORMATS]
-    conf_file.close()
+    with open(path) as file
+        formats = [f.rstrip('\n') for f in file if not re.match('[#\n ]+', f)]
+        FORMATS += [f for f in formats if f not in FORMATS]
+
 
 class Log():
     """Get time specific access to a logfile.
     """
+    _codes = [
+    '%Y-%m-%d %H:%M:%S',
+    '%b %d %X %Y',
+    '%b %d %X',
+    'timestamp',
+        ]
+    @classmethod
+    def add_time_codes(cls, codes):
+        """Add time-codes as list.
+        """
+        cls._codes += codes
+
     def __init__(self, path, strf=None, pattern=None):
         self.path = path
         self.strf = strf

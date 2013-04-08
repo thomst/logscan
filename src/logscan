@@ -19,7 +19,9 @@ from timeparse import ParseNofDateTimeDelta, ParseTimeDelta, ParseDate
 from logscanlib import Logs
 
 INFO = {
-    'description' : """This is a command-line-tool to get time-specific access to log-files, while rotated logfiles that are counted up (e.g. logfile.log, logfile.log.1, logfile.log.2.gz ...) are automatically taken together -also gzipped files are processed. Different date-time-formats are supported, inclusive simple timestamps as a huge number of seconds with three decimal-places, e.g. 123456789.123. Individual formats can be specified.
+    'description' : """Logscan is a command-line-tool to get time-specific access to log-files.
+
+Logscan can handle rotated logfiles with format "filename, filename.1, filename.2...". Also gzipped files are processed. Different date-time-formats are supported. Individual formats can be specified.
     """,
     'usage' : """
   logscan -h
@@ -28,16 +30,16 @@ INFO = {
 
 exemples:
   logscan logfile -H 4 30  or  logscan logfile -t 4 30
-                        from 4 hours and 30 minutes before last 
-                        log-entry till the end of file
+                        starts 4h and 30min before last entry,
+                        ends with the last entry
   logscan logfile -s 0105 2210 -m 50
-                        from 5.1. 22:10 o'clock till 5.1. 23:00 o'clock
-                        (50 Minutes further)
+                        from 5. Jan 22:10h to 5. Jan 23:00h
   logscan logfile -e 23 -w 2 0 5
-                        from two weeks and 5 hours before the date of the 
-                        last entry at 23:00 o'clock till this then
+                        starts 2 weeks and 5h before 23:00h,
+                        ends at 23:00h
+                        (with date of the last entry)
 """,
-    '-i' : 'show Informations about the LOGFILE',
+    '-i' : 'print the number of logfiles, the start- and the end-time',
     '-s' : '''If there are two VALUES the first one is interpreted as an expression for a date and the second one for a time. If there is only one VALUE it is taken as an expression for a time and the date will be supplemented with the date of the last entry of the logfile.
 VALUES can be given in various formats.
 Exemples for dates are:
@@ -48,11 +50,11 @@ Times are handled in a similar way. But when you dont get at least three numbers
 For exemple: 120530, 12;5;30 or 1205-30 are all taken as 12:05:30 o'clock. 1205 or 12:05 is 12:05:00, and 12 is simple 12:00:00. You are free to use any delimiter you want. Or no delimiter. But then you have to care to use only double-digit numbers like "05".
 The datetime you get will specify the start of the output. So you can use -s with only a single digit and you get the log of the day of the last log-entry from the hour of the digit on.''',
     '-e' : 'works the same way as --start-time, but specify the end-time of the output.',
-    '-t' : 'First N is interpreted as the number of hours, second as the number of minutes, third as the number of seconds while the second and third number is optional. All together will be interpreted as a timespan, that will be either add to the start-time if given by --start-time, or subtracted from the time where the logfile ends or if given from the specified end-time (see --start-time and --end-time). Mention that all data given by the Options --time-span, --weeks, --days, --hours, --minutes are add up to one timespan, that is used as descriped above.',
-    '-w' : 'The given Numbers are interpreted the same way as for --time-span with the difference that the first N is interpreted as the Number of weeks, second as the Number for days, then hours, minutes, seconds. Only the first N is required.',
-    '-d' : 'Same as --weeks but start with days.',
-    '-H' : 'Same as --weeks but start with hours.',
-    '-m' : 'Same as --weeks but start with minutes.',
+    '-t' : "Specifies a duration with first N as hours, second as minutes, third as seconds. Values for minutes and seconds are optional. A duration will be interpreted as starting with the point of start-time or ending with the point of end-time. If neither a start-time nore an end-time is given, end of logfile is taken as end-time.",
+    '-w' : 'Like --time-span, but starts with weeks.',
+    '-d' : 'Like --time-span, but start with days.',
+    '-H' : 'Like --time-span, but start with hours.',
+    '-m' : 'Like --time-span, but start with minutes.',
     '-D' : 'Print the log of a specified day.',
     '-S' : 'use FORMATSTRING to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
     '-g' : 'Only lines where PATTERN was found will be printed.',
