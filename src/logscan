@@ -15,6 +15,7 @@
 
 import os
 import sys
+import re
 import argparse
 from datetime import datetime
 from datetime import time
@@ -24,10 +25,21 @@ from timeparse import AppendDateTimeOrTime
 from timeparse import ParseDateTimeOrTime
 from timeparse import ParseTimeDelta
 from timeparse import ParseDate
-from logscanlib import Logs
+from logscanlib import RotatedLogs
+
+
+CONFIGFILES = (
+    'logscan.conf',
+    '/usr/local/etc/logscan.conf',
+    '/usr/etc/logscan.conf',
+    )
+
+TIMECODES = list()
+for file in [f for f in CONFIGFILES if os.path.isfile(f)]:
+    with open(file) as f:
+        TIMECODES += [f.rstrip('\n') for f in file if not re.match('[#\n ]+', f)]
 
 INFO = {
-#description
     'description' : """
 logscan is a command-line-tool to get time-specific access to log-files.
 
@@ -55,23 +67,23 @@ The calculation of a period works on basis of datetimes and durations:
   one datetime; negative duration:
                         from begin of duration to datetime
     """,
-#usage
+
     'usage' : """
   logscan -h
   logscan logfile -i
   logscan logfile [OPTIONS]
 """,
-#options:
+
     '-i' : 'print the number of logfiles, the start- and the end-time',
     '-d' : 'Print the log of a specified day.',
     '-f' : 'use FORMATSTRING to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
     '-g' : 'Only lines where PATTERN was found will be printed.',
-#--time:
+
     '-t' : """The first VALUE as date, second as daytime. The Date could be omitted. In that case logscan takes the date of the last log-entry.
 The generic format for the daytime is HHMMSS. You could also use an arbitrary seperator: HH:MM:SS (doing so you don't need two-digit-values). Seconds or seconds and minutes are not obliging. 0322 will be 03:22:00h or just 3 will be 03:00:00h.
 The generic format for the date is DDMM[YY]YY. As well you can use a seperator and one-digit-values. Also the year or the year and the month could be missing. In that case the date will be completed by the actual year and month.
 """,
-#--durations:
+
     '-W' : """Specifies a duration of weeks, days, hours, minutes and seconds for the given N's in this order. Starting with weeks. Following N's are optional. To specify a 'negative' duration put a '-' in front of all N's.
 Durations can be speciefied with all upper-case-options. All given durations are taken together, so that '-D 3 0 25' is the same as '-D 3 -M 25'.
 """,
@@ -79,7 +91,7 @@ Durations can be speciefied with all upper-case-options. All given durations are
     '-H' : 'duration with first N as hours.',
     '-M' : 'duration with first N as minutes.',
     '-S' : 'duration with first N as seconds.',
-}
+    }
 
 def isfile(value):
     """Check if value is a file and raise an Error if not.
@@ -87,15 +99,23 @@ def isfile(value):
     if os.path.isfile(value): return value
     else: raise argparse.ArgumentTypeError('{0} is no file'.format(value))
 
+
 class Logscan:
     def __init__(self):
+        self.start = None
+        self.end = None
         self.parser = argparse.ArgumentParser(
             prog='logscan',
             description=INFO['description'],
             usage=INFO['usage'],
             formatter_class=argparse.RawDescriptionHelpFormatter,
             )
-        self.parser.add_argument('logfile', type=isfile, nargs='?')
+        self.parser.add_argument(
+            'logfile',
+            type=argparse.FileType('rb', 1),
+            nargs='?',
+            default='-'
+            )
         self.parser.add_argument(
             '-i',
             '--info',
@@ -105,7 +125,7 @@ class Logscan:
             )
         self.parser.add_argument(
             '-f',
-            '--strf',
+            '--format',
             type=str,
             metavar='FORMATSTRING',
             help=INFO['-f']
@@ -181,13 +201,10 @@ class Logscan:
 
     def process(self):
         self.args = self.parser.parse_args()
-        self.log = Logs(self.args.logfile, self.args.strf)
-        self.log.period()
+        self.log = RotatedLogs(self.args.logfile, self.args.format, TIMECODES)
         self.args.weeks += self.args.days + self.args.hours + self.args.minutes + self.args.seconds
 
-        if self.args.info:
-            self.info()
-            return
+        if self.args.info: self.info()
         elif self.args.date: self.date()
         elif self.args.time and self.args.weeks: self.time_duration()
         elif self.args.time: self.time()
@@ -203,11 +220,12 @@ class Logscan:
 
     def info(self):
         print ''
-        print os.path.basename(self.log.path) + ':'
-        print '  {0} files'.format(self.log.number_files)
+        print os.path.basename(self.log.name) + ':'
+        print '  {0} files'.format(self.log.quantity)
         print '  starts: {0}'.format(self.log.start.strftime('%d.%m.%Y %H:%M:%S'))
         print '  ends: {0}'.format(self.log.end.strftime('%d.%m.%Y %H:%M:%S'))
         print ''
+        sys.exit()
 
     def date(self):
         self.start = datetime.combine(self.args.date, time())
@@ -237,16 +255,13 @@ class Logscan:
             self.end = self.log.start + self.args.weeks
         else:
             self.start = self.log.end + self.args.weeks
-            self.end = self.log.end
+            self.end = self.log.end     #TODO: self.log.end will safe the last entry!
 
     def print_log(self):
-        start = getattr(self, 'start', self.log.start)
-        end = getattr(self, 'end', self.log.end)
-
-        lines = self.log.section(start, end)
+        lines = self.log.get_section(self.start, self.end)
 
         if not lines:
-            print 'no entries between {0} and {1}'.format(start, end)
+            print 'no entries between {0} and {1}'.format(self.start, self.end)
 
         for line in lines:
             if self.args.grep and not self.args.grep in line: continue

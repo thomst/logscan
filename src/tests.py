@@ -123,6 +123,57 @@ class TestTimeParser(unittest.TestCase):
             )
 
 
+from logscanlib import Log
+from logscanlib import RotatedLogs
+
+class LogTest(unittest.TestCase):
+    def setUp(self):
+        self.log = Log(open('/var/log/syslog'))
+        Log.reset_timecode()
+
+    def tearDown(self):
+        self.log.close()
+
+    def test_base_functionality(self):
+        self.assertIsInstance(self.log.start, datetime.datetime)
+        self.assertIsInstance(self.log.end, datetime.datetime)
+        self.assertGreater(self.log.end, self.log.start)
+        self.assertIsInstance(self.log.lines, list)
+
+
+class GzipLogTest(unittest.TestCase):
+    def setUp(self):
+        self.log = Log(open('/var/log/syslog.6.gz'))
+        Log.reset_timecode()
+
+    def tearDown(self):
+        self.log.close()
+
+    def test_base_functionality(self):
+        self.assertIsInstance(self.log.start, datetime.datetime)
+        self.assertIsInstance(self.log.end, datetime.datetime)
+        self.assertGreater(self.log.end, self.log.start)
+        self.assertIsInstance(self.log.lines, list)
+
+
+class RotatedLogsTest(unittest.TestCase):
+    def setUp(self):
+        self.log = RotatedLogs(open('/var/log/syslog'))
+        Log.reset_timecode()
+
+    def tearDown(self):
+        self.log.close()
+
+    def test_base_functionality(self):
+        self.assertIsInstance(self.log.start, datetime.datetime)
+        self.assertIsInstance(self.log.end, datetime.datetime)
+        self.assertGreater(self.log.end, self.log.start)
+        self.assertIsInstance(self.log.lines, list)
+
+
+
+
+
 
 
 

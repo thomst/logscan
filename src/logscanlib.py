@@ -16,10 +16,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-import time, os, re, gzip, sys
-from datetime import datetime
+import time
+import os
+import re
+import sys
+import datetime
+from gzip import GzipFile
 
-TIME_MAP = {
+
+CODEMAP = {
     '%Y' : '(?P<Y>\d{4})',
     '%m' : '(?P<m>\d{2})',
     '%d' : '(?P<d>[ |\d]\d)',
@@ -43,211 +48,206 @@ TIME_MAP = {
     '%%' : '%',
     'timestamp' : '(?P<S>\d{10}\.\d{3})',
 #    '%s' : '(?P<s>\d{10})',    # TODO: not yet tested
-}
-CONFPATHS = (
-    '/usr/local/etc/logscan.conf',
-    '/usr/etc/logscan.conf',
-    os.path.join(os.getenv('HOME', '.'), '.logscan.conf'),
-    'logscan.conf',
-)
-FORMATS = [
+}   
+TIMECODES = [
     '%Y-%m-%d %H:%M:%S',
     '%b %d %X %Y',
     '%b %d %X',
     'timestamp',
-]
-confpaths = [p for p in CONFPATHS if os.path.exists(p)]
-for path in confpaths:
-    with open(path) as file:
-        formats = [f.rstrip('\n') for f in file if not re.match('[#\n ]+', f)]
-        FORMATS += [f for f in formats if f not in FORMATS]
+    ]
+
+
+class TimeCodeError(Exception):
+    "raise this when timecodes don't fit"
+    def __init__(self, msg):
+        self.msg = msg
+    def __str__(self):
+        return self.msg
 
 
 class Log():
     """Get time specific access to a logfile.
     """
+    def __init__(self, fileobj, timecode=None):
+        if timecode: self._set_timecode(timecode)
+        self._name = fileobj.name
+        if self.name.endswith('.gz'): fileobj = GzipFile(fileobj=fileobj)
+        self._fileobj = fileobj
+        self._lines = None
+        self._start = None
+        self._end = None
+
+    _timecode = None
     @classmethod
-    def add_time_codes(cls, formats):
-        """Add time-codes as list.
-        """
-        FORMATS += formats
+    def _set_timecode(cls, timecode):
+        cls._timecode = timecode
+        for code in CODEMAP: timecode = timecode.replace(code, CODEMAP[code])
+        cls._regexp = re.compile(timecode)
 
-    def __init__(self, path, strf=None, pattern=None):
-        self.path = path
-        self.strf = strf
-        self.pattern = pattern
-        self.isopen = False
-        self.lines = None
-        self.first_line = None
-        self.last_line = None
-        self.start = None
-        self.end = None
-        if not self.pattern: self.get_pattern()
+    @classmethod
+    def reset_timecode(cls):
+        cls._timecode = None
 
-    def period(self):
-        if self.start: return
-        self.get_first_and_last_line()
-        self.start = self.linetime(self.first_line)
-        self.end = self.linetime(self.last_line)
+    def _detect_timecode(self, line):
+        for timecode in TIMECODES:
+            self._set_timecode(timecode)
+            try: time = self._get_linetime(line)
+            except: continue
+            else: return
+        raise TimeCodeError("no proper timecode was found...")
 
-    def get_pattern(self):
-        """Build a regex-pattern out of the format for the time.
-        """
-        if self.strf: self.build_pattern()
-        else: self.check_formats()
+    def _get_first_line(self):
+        if self._lines: return self.lines[-1]
+        self._fileobj.seek(0)   #TODO: do this work with stdin?
+        return self._fileobj.readline()
 
-    def build_pattern(self):
-        pattern = self.strf
-        for format in TIME_MAP:
-            pattern = pattern.replace(format, TIME_MAP[format])
-        self.pattern = re.compile(pattern)
+    def _get_last_line(self):
+        # gzip.seek don't support seeking from end on
+        if self._lines or isinstance(self._fileobj, GzipFile):
+            return self.lines[-1]
+        self._fileobj.seek(-400, 2)
+        return self._fileobj.readlines()[-1]
 
-    def check_formats(self):
-        """Find out which time-format fits for the logfile.
-        """
-        self.get_first_line()
-        for format in FORMATS:
-            self.strf = format
-            self.get_pattern()
-            if self.linetime(self.first_line): break
-        if not self.pattern:
-            print "could not find a fitting format"
-            sys.exit(1)
-
-    def open(self):
-        """Open gziped and normal Logfiles.
-        """
-        if self.isopen: return
-        if re.match('.*?\.gz$', self.path): self.file = gzip.open(self.path, 'r')
-        else: self.file = open(self.path, 'r')
-        self.isopen = True
-
-    def close(self):
-        """Close the Logfile.
-        """
-        self.file.close()
-        self.isopen = False
-
-    def get_first_line(self):
-        self.open()
-        if not self.first_line: self.first_line = self.file.readline()
-
-    def get_first_and_last_line(self):
-        self.open()
-        if not self.first_line: self.first_line = self.file.readline()
-        try:
-            self.file.seek(-250, 2)
-            self.last_line = self.file.readlines()[-1]
-        except:
-            self.lines = self.get_all_lines()
-            self.last_line = self.lines[-1]
-
-    def get_all_lines(self):
-        """Get all lines of the file.
-        """
-        if self.lines: return self.lines
-        self.open()
-        self.file.seek(0, 0)
-        self.lines = self.file.readlines()
-        self.close()
-        return self.lines
-
-    def linetime(self, line):
+    def _get_linetime(self, line):
         """Get the logtime of a line.
         """
-        match = self.pattern.search(line)
-        if not match: return None
-        if self.strf == 'timestamp':
-            time = datetime.fromtimestamp(float(match.group()))
+        if not self._timecode: self._detect_timecode(line)
+        match = self._regexp.search(line)
+        if not match: raise TimeCodeError("%s doesn't fit" % self._timecode)
+
+        if self._timecode == 'timestamp':
+            time = datetime.datetime.fromtimestamp(float(match.group()))
         else:
-            time = datetime.strptime(match.group(), self.strf)
-        if time.year == 1900:
-            today = datetime.today()
-            time = time.replace(year=today.year)
-            if time > today: time = time.replace(year=today.year - 1)
+            time = datetime.datetime.strptime(match.group(), self._timecode)
+
+            if time.year == 1900:   #TODO: maybe find a more elegant solution
+                today = datetime.datetime.today()
+                time = time.replace(year=today.year)
+                if time > today: time = time.replace(year=today.year - 1)
+
         return time
 
-    def section(self, start_time=None, end_time=None):
-        """Get loglines between two specified datetimes.
-        """
-        start_time = start_time or self.start
-        end_time = end_time or self.end
-        if end_time < self.start or start_time > self.end: return []
-        elif not self.lines: self.lines = self.get_all_lines()
-        if end_time >= self.end and start_time <= self.start: return self.lines
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def start(self):
+        "time the log starts with"
+        if not self._start:
+            first_line = self._get_first_line()
+            self._start = self._get_linetime(first_line)
+        return self._start
+
+    @property
+    def end(self):
+        "time the log ends with"
+        if not self._end:
+            last_line = self._get_last_line()
+            self._end = self._get_linetime(last_line)
+        return self._end
+
+    @property
+    def lines(self):
+        "all lines of the log"
+        if not self._lines:
+            self._fileobj.seek(0)
+            self._lines = self._fileobj.readlines()
+        return self._lines
+
+    def get_section(self, start, end):
+        "Get loglines between two specified datetimes."
+
+        if start > self.end or end < self.start: return list()
+        if start <= self.start and end >= self.end: return self.lines
 
         lines = []
-        matched = start_time <= self.start
-        till_end = end_time > self.end
-        for l in self.lines:
-            time = self.linetime(l)
-            if not time: continue
-            if not matched and time > start_time: matched = True
-            if not till_end and time > end_time: break
-            if matched: lines.append(l)
+        got = False
+        for line in self.lines:
+            time = self._get_linetime(line)
+            if time >= end: break
+            if time >= start: got = True
+            if got: lines.append(line)
 
-        self.close()
         return lines
 
-class Logs():
-    """Get time-specific access to rotated logfiles using Log as parent-class.
+        #TODO: check if this is more perfomant
+#        lines = []
+#        got = start <= self.start
+#        toend = end > self.end
+#        for line in self.lines:
+#            time = self._get_linetime(line)
+#            if time:
+#                if not got and time >= start: got = True
+#                if not toend and time >= end: break
+#                if got: lines.append(line)
+
+    def close(self):
+        self._fileobj.close()
+
+
+class RotatedLogs():
+    """Get time-specific access to rotated logfiles.
     """
-    def __init__(self, path, strf=None):
-        self.path = path
-        self.strf = strf
-        self.pattern = None
-        self.files = []
-        self.rotate()
+    def __init__(self, fileobj, timecode=None, timecodes=list()):
+        self._name = fileobj.name
+        self._files = [Log(fileobj, timecode)]
+        if self.name != '<stdin>': self._rotate()
 
-    def rotate(self):
-        """Collect all rotated logfile-paths in self.files.
-        """
-        c = 1
-        path = self.path
-        while os.path.isfile(path) or os.path.isfile(path+'.gz'):
-            if os.path.isfile(path+'.gz'): path = path+'.gz'
-            self.files.append(Log(path, self.strf, self.pattern))
-            if not self.pattern: self.get_pattern()
-            path = '{0}.{1}'.format(self.path, c)
-            c += 1
-        self.number_files = len(self.files)
+        global TIMECODES
+        TIMECODES += [c for c in timecodes if not c in TIMECODES]
 
-    def get_pattern(self):
-        self.pattern = self.files[0].pattern
-        self.strf = self.files[0].strf
+    def _rotate(self):
+        i = 1
+        name = self.name
+        insert = lambda name: self._files.insert(0, Log(open(name, 'rb')))
 
-    def period(self):
-        self.files[0].period()
-        self.end = self.files[0].end
-        self.files[-1].period()
-        self.start = self.files[-1].start
+        while 1:
+            name = '%s.%s' % (self.name, i)
+            if os.path.isfile(name): insert(name)
+            elif os.path.isfile(name + '.gz'): insert(name + '.gz')
+            else: break
+            i += 1
 
-    def section(self, start_time=None, end_time=None):
-        """Get a section of all lines of all files.
-        """
-        if not start_time and not end_time: return self.get_all_lines()
-        self.period()
-        if end_time < self.start or start_time > self.end: return []
-        if end_time >= self.end and start_time <= self.start:
-            return self.get_all_lines()
+    @property
+    def name(self):
+        return self._name
 
-        lines = []
-        for f in self.files:
-            f.period()
-            if end_time < f.start: continue
-            else: lines = f.section(start_time, end_time) + lines
-            if start_time >= f.start: break
+    @property
+    def quantity(self):
+        return len(self._files)
 
+    @property
+    def start(self):
+        return self._files[0].start
+
+    @property
+    def end(self):
+        return self._files[-1].end
+
+    @property
+    def lines(self):
+        lines = list()
+        for file in self._files: lines += file.lines
         return lines
 
-    def get_all_lines(self):
-        lines = []
-        for f in self.files: lines = f.get_all_lines() + lines
+    def get_section(self, start, end):
+        #TODO: support for start and end as None
+        if start > self.end or end < self.start: return list()
+        if start <= self.start and end >= self.end: return self.lines
+
+        files = self._files
+        files.reverse()
+        lines = list()
+        for file in files:
+            if end  <= file.start: continue
+            else: lines = file.get_section(start, end) + lines
+            if start >= file.start: break
+
         return lines
 
     def close(self):
-        for f in self.files:
-            try: f.close()
-            except: pass
+        for file in self._files: file.close()
+
 
 
