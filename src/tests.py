@@ -1,7 +1,14 @@
 import unittest
 import datetime
+import argparse
 
 from timeparse import DeltaDateTime
+from timeparse import AppendDateTimeOrTime
+from timeparse import ParseDateTimeOrTime
+from timeparse import ParseDateTime
+from timeparse import ParseTimeDelta
+from timeparse import ParseDate
+from timeparse import ParseTime
 
 
 class DeltaDateTimeTests(unittest.TestCase, DeltaDateTime):
@@ -29,6 +36,77 @@ class DeltaDateTimeTests(unittest.TestCase, DeltaDateTime):
         self.assertEqual(datetime.timedelta(weeks=20, days=4, hours=46), self.string_to_delta('20 04 46'))
         self.dest = "days"
         self.assertEqual(datetime.timedelta(days=20, hours=4, minutes=46), self.string_to_delta('20 04 46'))
+
+
+class TestTimeParser(unittest.TestCase):
+    def setUp(self):
+        self.parser = argparse.ArgumentParser()
+
+    def test_ParseTimeDelta(self):
+        self.parser.add_argument(
+            '--weeks',
+            action=ParseTimeDelta,
+            nargs='+',
+            )
+        self.assertEqual(datetime.timedelta(weeks=-20, hours=-4), self.parser.parse_args('--weeks -20 0 -4'.split()).weeks)
+
+    def test_ParseTime(self):
+        self.parser.add_argument(
+            '--time',
+            action=ParseTime,
+            nargs='+',
+            )
+        self.assertEqual(datetime.time(10, 45, 22), self.parser.parse_args('--time 104522'.split()).time)
+
+    def test_ParseDate(self):
+        self.parser.add_argument(
+            '--date',
+            action=ParseDate,
+            nargs='+',
+            )
+        self.assertEqual(datetime.date(2013, 4, 22), self.parser.parse_args('--date 22.4.13'.split()).date)
+        self.assertEqual(datetime.date(2013, 4, 22), self.parser.parse_args('--date 220413'.split()).date)
+        self.assertEqual(datetime.date(2013, 4, 22), self.parser.parse_args('--date 22042013'.split()).date)
+
+    def test_ParseDateTime(self):
+        self.parser.add_argument(
+            '--datetime',
+            action=ParseDateTime,
+            nargs='+',
+            )
+        self.assertEqual(
+            datetime.datetime(2013, 4, 22, 22, 3, 16),
+            self.parser.parse_args('--datetime 22.4 220316'.split()).datetime
+            )
+
+    def test_ParseDateTimeOrTime(self):
+        self.parser.add_argument(
+            '--datetime',
+            action=ParseDateTimeOrTime,
+            nargs='+',
+            )
+        self.assertEqual(
+            datetime.datetime(2013, 4, 22, 22, 3, 16),
+            self.parser.parse_args('--datetime 22.4 220316'.split()).datetime
+            )
+        self.assertEqual(
+            datetime.time(22, 3, 16),
+            self.parser.parse_args('--datetime 220316'.split()).datetime
+            )
+
+    def test_AppendDateTimeOrTime(self):
+        self.parser.add_argument(
+            '--datetime',
+            action=AppendDateTimeOrTime,
+            nargs='+',
+            )
+        self.assertEqual(
+            [datetime.time(22, 3, 16), datetime.time(13, 3)],
+            self.parser.parse_args('--datetime 220316 --datetime 1303'.split()).datetime
+            )
+
+
+
 
 
 if __name__ == '__main__':

@@ -26,7 +26,7 @@ delta_keys = ('weeks', 'days', 'hours', 'minutes', 'seconds')
 
 
 class DeltaDateTime:
-    """Gives Methods to convert strings to datetime-objects.
+    """Convert strings to datetime-objects.
     """
     def string_to_delta(self, string):
         """Convert a string to a timedelta-object of the datetime-class.
@@ -102,7 +102,7 @@ class ParseTime(argparse.Action, DeltaDateTime):
     def __call__(self, parser, namespace, values, option_string=None):
         values = ' '.join(list(values))
         time = self.string_to_time(values)
-        setattr(namespace, self.dest, date)
+        setattr(namespace, self.dest, time)
 
 
 class ParseTimeDelta(argparse.Action, DeltaDateTime):
@@ -115,12 +115,22 @@ class ParseTimeDelta(argparse.Action, DeltaDateTime):
 
 
 class ParseDateTimeOrTime(argparse.Action, DeltaDateTime):
-    """Parse an argument to either a timedelta-, time or datetime-object.
+    """Parse an argument to either a datetime.time or -.datetime-object.
+    Depending on the values passed.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         if len(values) == 1: obj = self.string_to_time(values[0])
         elif len(values) == 2: obj = self.strings_to_datetime(values[0], values[1])
         setattr(namespace, self.dest, obj)
+
+class AppendDateTimeOrTime(ParseDateTimeOrTime):
+    """Save parsed time or datetime-objects as list.
+    """
+    def __call__(self, parser, namespace, values, option_string=None):
+        if len(values) == 1: obj = self.string_to_time(values[0])
+        elif len(values) == 2: obj = self.strings_to_datetime(values[0], values[1])
+        if getattr(namespace, self.dest): getattr(namespace, self.dest).append(obj)
+        else: setattr(namespace, self.dest, [obj])
 
 
 
