@@ -95,7 +95,7 @@ class Logscan:
             usage=INFO['usage'],
             formatter_class=argparse.RawDescriptionHelpFormatter,
             )
-        self.parser.add_argument('logfile', type=isfile)
+        self.parser.add_argument('logfile', type=isfile, nargs='?')
         self.parser.add_argument(
             '-i',
             '--info',
@@ -244,16 +244,18 @@ class Logscan:
         end = getattr(self, 'end', self.log.end)
 
         lines = self.log.section(start, end)
-        if lines:
-            if self.args.grep: lines = [l for l in lines if args.grep in l]
-            print ''.join(lines)[:-1]
-        else:
-            print 'There are no log-entries between {0} and {1}'.format(start, end)
+
+        if not lines:
+            print 'no entries between {0} and {1}'.format(start, end)
+
+        for line in lines:
+            if self.args.grep and not self.args.grep in line: continue
+            print line,
 
 
 if __name__ == "__main__":
     logscan = Logscan()
-    try: logscan.process()  # TODO: cannot interrupt. why?
-    except IOError, KeyboardInterrupt: sys.exit(1)
+    try: logscan.process()
+    except KeyboardInterrupt: print KeyboardInterrupt.__name__
 
 
