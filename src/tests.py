@@ -1,6 +1,7 @@
 import unittest
 import datetime
 import argparse
+from argparse import ArgumentError
 
 from timeparse import DeltaDateTime
 from timeparse import AppendDateTimeOrTime
@@ -34,8 +35,24 @@ class DeltaDateTimeTests(unittest.TestCase, DeltaDateTime):
     def test_string_to_delta(self):
         self.dest = "weeks"
         self.assertEqual(datetime.timedelta(weeks=20, days=4, hours=46), self.string_to_delta('20 04 46'))
+
         self.dest = "days"
         self.assertEqual(datetime.timedelta(days=20, hours=4, minutes=46), self.string_to_delta('20 04 46'))
+        self.assertEqual(datetime.timedelta(days=20, hours=4, minutes=46), self.string_to_delta('20,04,46'))
+        self.assertEqual(datetime.timedelta(days=20, hours=4, minutes=46), self.string_to_delta('20 04,46'))
+        self.assertEqual(datetime.timedelta(days=0, hours=0, minutes=46), self.string_to_delta('0 0 46'))
+
+        self.dest = "minutes"
+        self.assertEqual(datetime.timedelta(minutes=46), self.string_to_delta('46 0'))
+        self.assertEqual(datetime.timedelta(minutes=1), self.string_to_delta('1,0'))
+
+        self.dest = "days"
+        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '20w 1')
+        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '20 1o')
+        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '20_1')
+        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '0_1')
+        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, 'abc def')
+        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '3 abc')
 
 
 class TestTimeParser(unittest.TestCase):

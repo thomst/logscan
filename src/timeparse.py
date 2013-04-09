@@ -21,7 +21,7 @@ from argparse import ArgumentError
 
 one = re.compile('(?<!\d)(\d)(?!\d)')
 two = re.compile('(\d{2})')
-digs = re.compile('(?<!\d)([-+]?\d+)(?![-+\d])')
+digs = re.compile('(?<!\w)([-+]?\w+)(?![-+\w])')
 delta_keys = ('weeks', 'days', 'hours', 'minutes', 'seconds')
 
 
@@ -31,15 +31,13 @@ class DeltaDateTime:
     def string_to_delta(self, string):
         """Convert a string to a timedelta-object of the datetime-class.
         """
-        error = ArgumentError(
+        try: delta = [int(x) for x in digs.findall(string)]
+        except: raise ArgumentError(
             self,
             '{0} could not be parsed as timedelta'.format(string)
             )
-        delta = [int(x) for x in digs.findall(string)]
-        if not delta: raise error
         delta = dict(zip(delta_keys[delta_keys.index(self.dest):], delta))
-        try: delta = datetime.timedelta(**delta)
-        except: raise error
+        delta = datetime.timedelta(**delta)
         return delta
 
     def string_to_time(self, string):
