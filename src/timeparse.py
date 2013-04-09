@@ -31,13 +31,15 @@ class DeltaDateTime:
     def string_to_delta(self, string):
         """Convert a string to a timedelta-object of the datetime-class.
         """
-        delta = [int(x) for x in digs.findall(string)]
-        delta = dict(zip(delta_keys[delta_keys.index(self.dest):], delta))
-        try: delta = datetime.timedelta(**delta)
-        except: raise ArgumentError(
+        error = ArgumentError(
             self,
             '{0} could not be parsed as timedelta'.format(string)
-        )
+            )
+        delta = [int(x) for x in digs.findall(string)]
+        if not delta: raise error
+        delta = dict(zip(delta_keys[delta_keys.index(self.dest):], delta))
+        try: delta = datetime.timedelta(**delta)
+        except: raise error
         return delta
 
     def string_to_time(self, string):
@@ -79,14 +81,6 @@ class DeltaDateTime:
 
 
 
-class ParseDateTime(argparse.Action, DeltaDateTime):
-    """Parse a commandline-argument to a datetime.datetime-object.
-    """
-    def __call__(self, parser, namespace, values, option_string=None):
-        date_time = self.strings_to_datetime(values[0], values[1])
-        setattr(namespace, self.dest, date_time)
-
-
 class ParseDate(argparse.Action, DeltaDateTime):
     """Parse a commandline-argument to a datetime.date-object.
     """
@@ -112,6 +106,14 @@ class ParseTimeDelta(argparse.Action, DeltaDateTime):
         values = ' '.join(list(values))
         delta = self.string_to_delta(values)
         setattr(namespace, self.dest, delta)
+
+
+class ParseDateTime(argparse.Action, DeltaDateTime):
+    """Parse a commandline-argument to a datetime.datetime-object.
+    """
+    def __call__(self, parser, namespace, values, option_string=None):
+        date_time = self.strings_to_datetime(values[0], values[1])
+        setattr(namespace, self.dest, date_time)
 
 
 class ParseDateTimeOrTime(argparse.Action, DeltaDateTime):

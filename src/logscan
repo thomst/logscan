@@ -31,23 +31,19 @@ INFO = {
     'description' : """
 logscan is a command-line-tool to get time-specific access to log-files.
 
-logscan scans logs and print log-entries conditional on specified times and or durations. It can handle rotated and or gzipped logfiles and identifies different formats for timestamps of log-entries.
-    """,
-#usage
-    'usage' : """
-  logscan -h
-  logscan logfile -i
-  logscan logfile [OPTIONS]
+logscan scans logs and print log-entries conditional on specified times
+and durations. It can handle rotated and gzipped logfiles and identifies
+different formats for timestamps of log-entries.
 
-Calculation of the period works on basis of datetimes and durations:
+The calculation of a period works on basis of datetimes and durations:
   no datetime; no duration:
                         whole log is printed
   one datetime; no duration:
                         period goes from datetime to
                         the end of the log
   two datetime; no duration:
-                        period starts with the later
-                        datetime and ends with the former
+                        period starts with the first and
+                        ends with the second datetime
   no datetime; positive duration:
                         from begin of the log to the end
                         of the duration
@@ -58,6 +54,12 @@ Calculation of the period works on basis of datetimes and durations:
                         from datetime to end of duration
   one datetime; negative duration:
                         from begin of duration to datetime
+    """,
+#usage
+    'usage' : """
+  logscan -h
+  logscan logfile -i
+  logscan logfile [OPTIONS]
 """,
 #options:
     '-i' : 'print the number of logfiles, the start- and the end-time',
@@ -65,9 +67,9 @@ Calculation of the period works on basis of datetimes and durations:
     '-f' : 'use FORMATSTRING to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
     '-g' : 'Only lines where PATTERN was found will be printed.',
 #--time:
-    '-t' : """Specifies daytime and date. The daytime and the date should be seperated by a whitespace. Date could be omitted. In that case logscan looks for the last log-entry for the given daytime.
-The generic format for the daytime is HHMMSS. You could also use an arbitrary seperator: HH:MM:SS. (Using a seperator you don't need two-digit-values). You can omit seconds or seconds and minutes are not obliging. 0322 will be 03:22:00h or just 3 will be 03:00:00h.
-The generic format for the date is DDMMYYYY. As well you can use a seperator and one-digit-values. Also the year or the year and the month could be missing. In that case the date will be completed by the actual year and month.
+    '-t' : """The first VALUE as date, second as daytime. The Date could be omitted. In that case logscan takes the date of the last log-entry.
+The generic format for the daytime is HHMMSS. You could also use an arbitrary seperator: HH:MM:SS (doing so you don't need two-digit-values). Seconds or seconds and minutes are not obliging. 0322 will be 03:22:00h or just 3 will be 03:00:00h.
+The generic format for the date is DDMM[YY]YY. As well you can use a seperator and one-digit-values. Also the year or the year and the month could be missing. In that case the date will be completed by the actual year and month.
 """,
 #--durations:
     '-W' : """Specifies a duration of weeks, days, hours, minutes and seconds for the given N's in this order. Starting with weeks. Following N's are optional. To specify a 'negative' duration put a '-' in front of all N's.
@@ -91,6 +93,7 @@ class Logscan:
             prog='logscan',
             description=INFO['description'],
             usage=INFO['usage'],
+            formatter_class=argparse.RawDescriptionHelpFormatter,
             )
         self.parser.add_argument('logfile', type=isfile)
         self.parser.add_argument(
@@ -99,6 +102,28 @@ class Logscan:
             action='store_true',
             default=False,
             help=INFO['-i'],
+            )
+        self.parser.add_argument(
+            '-f',
+            '--strf',
+            type=str,
+            metavar='FORMATSTRING',
+            help=INFO['-f']
+            )
+        self.parser.add_argument(
+            '-g',
+            '--grep',
+            type=str,
+            metavar='PATTERN',
+            help=INFO['-g']
+            )
+        self.parser.add_argument(
+            '-d',
+            '--date',
+            action=ParseDate,
+            nargs='+',
+            metavar='N',
+            help=INFO['-d']
             )
         self.parser.add_argument(
             '-t',
@@ -152,28 +177,6 @@ class Logscan:
             default=timedelta(),
             metavar='N',
             help=INFO['-S']
-            )
-        self.parser.add_argument(
-            '-d',
-            '--date',
-            action=ParseDate,
-            nargs='+',
-            metavar='N',
-            help=INFO['-d']
-            )
-        self.parser.add_argument(
-            '-f',
-            '--strf',
-            type=str,
-            metavar='FORMATSTRING',
-            help=INFO['-f']
-            )
-        self.parser.add_argument(
-            '-g',
-            '--grep',
-            type=str,
-            metavar='PATTERN',
-            help=INFO['-g']
             )
 
     def process(self):
