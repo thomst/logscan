@@ -23,7 +23,7 @@ import sys
 import datetime
 from gzip import GzipFile
 
-
+STDIN = '<stdin>'
 CODEMAP = {
     '%Y' : '(?P<Y>\d{4})',
     '%m' : '(?P<m>\d{2})',
@@ -73,7 +73,7 @@ class Log():
         self._name = fileobj.name
         if self.name.endswith('.gz'): fileobj = GzipFile(fileobj=fileobj)
         self._fileobj = fileobj
-        self._lines = None
+        self._lines = self._fileobj.readlines() if self.name == STDIN else None
         self._start = None
         self._end = None
 
@@ -97,8 +97,8 @@ class Log():
         raise TimeCodeError("no proper timecode was found...")
 
     def _get_first_line(self):
-        if self._lines: return self.lines[-1]
-        self._fileobj.seek(0)   #TODO: do this work with stdin?
+        if self._lines: return self.lines[0]
+        self._fileobj.seek(0)
         return self._fileobj.readline()
 
     def _get_last_line(self):
