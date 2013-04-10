@@ -55,9 +55,9 @@ TIMECODES = [
     '%b %d %X',
     'timestamp',
     ]
-def add_timecodes(cls, timecodes):
+def add_timecodes(timecodes):
     global TIMECODES
-        TIMECODES += [c for c in timecodes if not c in TIMECODES]
+    TIMECODES += [c for c in timecodes if not c in TIMECODES]
 
 class TimeCodeError(Exception):
     "raise this when timecodes don't fit"
@@ -157,20 +157,45 @@ class Log():
             self._lines = self._fileobj.readlines()
         return self._lines
 
-    def get_section(self, start, end):
+    def _seek(self, time, index=0):
+        if not time: return None
+        if time <= self.start: return 0
+        if time > self.end: return len(self.lines)
+        i = index or 0
+        while time > self._get_linetime(self.lines[i]):
+            i += 1
+            if i == len(self.lines): break
+        return i
+
+    def get_section(self, start=None, end=None):
         "Get loglines between two specified datetimes."
-        if start > self.end or end < self.start: return list()
-        if start <= self.start and end >= self.end: return self.lines
+        if start and start > self.end: return list()
+        if end and end <= self.start: return list()
+        
+        index1 = self._seek(start)
+        index2 = self._seek(end, index1)
+        return self.lines[index1:index2]
 
-        lines = []
-        got = False
-        for line in self.lines:
-            time = self._get_linetime(line)
-            if time > end: break
-            if time >= start: got = True
-            if got: lines.append(line)
+#        if start and (self.start < start <= self.end):
+#            startindex = self._seek(start)
+#        if start:
+#            if start >= self.start:
+#                startindex = self._seek(start)
+#            if start > self.end or end <= self.start: return list()
+#            elif start <= self.start and end > self.end: return self.lines
+#            elif start > self.start and end > self.end:
+#                return self.lines[self._seek(start):]
+#            elif start
 
-        return lines
+#        lines = []
+#        got = False
+#        for line in self.lines:
+#            time = self._get_linetime(line)
+#            if time > end: break
+#            if time >= start: got = True
+#            if got: lines.append(line)
+
+#        return lines
 
         #TODO: check if this is more perfomant
 #        lines = []
@@ -229,17 +254,18 @@ class RotatedLogs():
         for file in self._files: lines += file.lines
         return lines
 
-    def get_section(self, start, end):
-        if start > self.end or end < self.start: return list()
-        if start <= self.start and end >= self.end: return self.lines
+    def get_section(self, start=None, end=None):
+        if start and start > self.end: return list()
+        if end and end <= self.start: return list()
+        if not (start or end): return self.lines
 
         files = self._files
         files.reverse()
         lines = list()
         for file in files:
-            if end  < file.start: continue
+            if end and end  <= file.start: continue
             else: lines = file.get_section(start, end) + lines
-            if start >= file.start: break
+            if start and start >= file.start: break
 
         return lines
 

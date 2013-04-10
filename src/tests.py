@@ -47,12 +47,12 @@ class DeltaDateTimeTests(unittest.TestCase, DeltaDateTime):
         self.assertEqual(datetime.timedelta(minutes=1), self.string_to_delta('1,0'))
 
         self.dest = "days"
-        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '20w 1')
-        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '20 1o')
-        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '20_1')
-        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '0_1')
-        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, 'abc def')
-        self.assertRaisesRegexp(ArgumentError, 'parsed as timedelta', self.string_to_delta, '3 abc')
+        self.assertRaisesRegexp(ArgumentError, '20w 1', self.string_to_delta, '20w 1')
+        self.assertRaisesRegexp(ArgumentError, '20 1o', self.string_to_delta, '20 1o')
+        self.assertRaisesRegexp(ArgumentError, '20_1', self.string_to_delta, '20_1')
+        self.assertRaisesRegexp(ArgumentError, '0_1', self.string_to_delta, '0_1')
+        self.assertRaisesRegexp(ArgumentError, 'abc def', self.string_to_delta, 'abc def')
+        self.assertRaisesRegexp(ArgumentError, '3 abc', self.string_to_delta, '3 abc')
 
 
 class TestTimeParser(unittest.TestCase):
@@ -170,6 +170,37 @@ class RotatedLogsTest(unittest.TestCase):
         self.assertGreater(self.log.end, self.log.start)
         self.assertIsInstance(self.log.lines, list)
 
+class LogTest(unittest.TestCase):
+    def setUp(self):
+        self.log = Log(open('/var/log/syslog'))
+        Log.reset_timecode()
+
+    def tearDown(self):
+        self.log.close()
+
+    def test_get_section(self):
+
+        # end should not be included
+        lines = self.log.get_section(None, self.log.end)
+        time1 = self.log._get_linetime(lines[-1])
+        time2 = self.log._get_linetime(self.log.lines[len(lines)])
+        self.assertEqual(lines[-1], self.log.lines[len(lines)-1])
+        self.assertLess(time1, self.log.end)
+        self.assertGreaterEqual(time2, self.log.end)
+
+        # but start should
+        lines = self.log.get_section(self.log.start, None)
+        self.assertEqual(lines[0], self.log.lines[0])
+        self.assertEqual(lines, self.log.lines)
+
+        # more arbitrary time
+        time = self.log.end - datetime.timedelta(minutes=1)
+        lines = self.log.get_section(None, time)
+        time1 = self.log._get_linetime(lines[-1])
+        time2 = self.log._get_linetime(self.log.lines[len(lines)])
+        self.assertEqual(lines[-1], self.log.lines[len(lines)-1])
+        self.assertLess(time1, time)
+        self.assertGreaterEqual(time2, time)
 
 
 

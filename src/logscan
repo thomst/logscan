@@ -82,7 +82,7 @@ def isfile(value):
     if os.path.isfile(value): return value
     else: raise argparse.ArgumentTypeError('{0} is no file'.format(value))
 
-
+#TODO: arg for not-rotating
 class Logscan:
     def __init__(self):
         self.parser = argparse.ArgumentParser(
@@ -232,7 +232,7 @@ class Logscan:
         self.prepare_times()
         if len(self.args.time) is 1:
             start = self.args.time[0]
-            end = self.log.end
+            end = None
         else:
             start = self.args.time[0]
             end = self.args.time[1]
@@ -240,11 +240,11 @@ class Logscan:
 
     def duration(self):
         if self.args.weeks > timedelta(0):
-            start = self.log.start
+            start = None
             end = self.log.start + self.args.weeks
         else:
             start = self.log.end + self.args.weeks
-            end = self.log.end
+            end = None
         self.print_lines(self.log.get_section(start, end))
 
     def print_lines(self, lines):
@@ -262,6 +262,8 @@ if __name__ == "__main__":
         logscan.run()
     except (KeyboardInterrupt, TimeCodeError) as err:
         print err
+    except IOError:
+        pass
     finally:
         if hasattr(logscan, 'log'): logscan.log.close()
 
