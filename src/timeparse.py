@@ -34,7 +34,7 @@ class DeltaDateTime:
         try: delta = [int(x) for x in digs.findall(string)]
         except: raise ArgumentError(
             self,
-            '{0} could not be parsed as timedelta'.format(string)
+            "couldn't parse '{0}' as timedelta".format(string)
             )
         delta = dict(zip(delta_keys[delta_keys.index(self.dest):], delta))
         delta = datetime.timedelta(**delta)
@@ -47,7 +47,7 @@ class DeltaDateTime:
         try: time = datetime.time(*time)
         except: raise ArgumentError(
             self,
-            '{0} could not be parsed as time'.format(string)
+            "couldn't parse '{0}' as time".format(string)
         )
         return time
 
@@ -66,7 +66,7 @@ class DeltaDateTime:
         try: date = datetime.date(*date)
         except: raise ArgumentError(
             self,
-            '{0} could not be parsed as date'.format(string)
+            "couldn't parse '{0}' as date".format(string)
         )
         return date
 

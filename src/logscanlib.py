@@ -55,7 +55,9 @@ TIMECODES = [
     '%b %d %X',
     'timestamp',
     ]
-
+def add_timecodes(cls, timecodes):
+    global TIMECODES
+        TIMECODES += [c for c in timecodes if not c in TIMECODES]
 
 class TimeCodeError(Exception):
     "raise this when timecodes don't fit"
@@ -94,7 +96,7 @@ class Log():
             try: time = self._get_linetime(line)
             except: continue
             else: return
-        raise TimeCodeError("no proper timecode was found...")
+        raise TimeCodeError("...no proper timecode was found")
 
     def _get_first_line(self):
         if self._lines: return self.lines[0]
@@ -113,7 +115,7 @@ class Log():
         """
         if not self._timecode: self._detect_timecode(line)
         match = self._regexp.search(line)
-        if not match: raise TimeCodeError("%s doesn't fit" % self._timecode)
+        if not match: raise TimeCodeError("invalid timecode: '%s'" % self._timecode)
 
         if self._timecode == 'timestamp':
             time = datetime.datetime.fromtimestamp(float(match.group()))
@@ -157,7 +159,6 @@ class Log():
 
     def get_section(self, start, end):
         "Get loglines between two specified datetimes."
-
         if start > self.end or end < self.start: return list()
         if start <= self.start and end >= self.end: return self.lines
 
@@ -165,7 +166,7 @@ class Log():
         got = False
         for line in self.lines:
             time = self._get_linetime(line)
-            if time >= end: break
+            if time > end: break
             if time >= start: got = True
             if got: lines.append(line)
 
@@ -189,13 +190,10 @@ class Log():
 class RotatedLogs():
     """Get time-specific access to rotated logfiles.
     """
-    def __init__(self, fileobj, timecode=None, timecodes=list()):
+    def __init__(self, fileobj, timecode=None):
         self._name = fileobj.name
         self._files = [Log(fileobj, timecode)]
         if self.name != '<stdin>': self._rotate()
-
-        global TIMECODES
-        TIMECODES += [c for c in timecodes if not c in TIMECODES]
 
     def _rotate(self):
         i = 1
@@ -232,7 +230,6 @@ class RotatedLogs():
         return lines
 
     def get_section(self, start, end):
-        #TODO: support for start and end as None
         if start > self.end or end < self.start: return list()
         if start <= self.start and end >= self.end: return self.lines
 
@@ -240,7 +237,7 @@ class RotatedLogs():
         files.reverse()
         lines = list()
         for file in files:
-            if end  <= file.start: continue
+            if end  < file.start: continue
             else: lines = file.get_section(start, end) + lines
             if start >= file.start: break
 

@@ -25,72 +25,55 @@ from timeparse import AppendDateTimeOrTime
 from timeparse import ParseDateTimeOrTime
 from timeparse import ParseTimeDelta
 from timeparse import ParseDate
+from logscanlib import add_timecodes
 from logscanlib import RotatedLogs
+from logscanlib import TimeCodeError
 
 
-CONFIGFILES = (
+FILES = (
     'logscan.conf',
     '/usr/local/etc/logscan.conf',
     '/usr/etc/logscan.conf',
     )
-
-TIMECODES = list()
-for file in [f for f in CONFIGFILES if os.path.isfile(f)]:
-    with open(file) as f:
-        TIMECODES += [f.rstrip('\n') for f in file if not re.match('[#\n ]+', f)]
-
-INFO = {
-    'description' : """
-logscan is a command-line-tool to get time-specific access to log-files.
-
-logscan scans logs and print log-entries conditional on specified times
-and durations. It can handle rotated and gzipped logfiles and identifies
-different formats for timestamps of log-entries.
-
-The calculation of a period works on basis of datetimes and durations:
-  no datetime; no duration:
-                        whole log is printed
-  one datetime; no duration:
-                        period goes from datetime to
-                        the end of the log
-  two datetime; no duration:
-                        period starts with the first and
-                        ends with the second datetime
-  no datetime; positive duration:
-                        from begin of the log to the end
-                        of the duration
-  no datetime; negative duration:
-                        from begin of the duration to end
-                        of the log
-  one datetime; positive duration:
-                        from datetime to end of duration
-  one datetime; negative duration:
-                        from begin of duration to datetime
-    """,
-
-    'usage' : """
+METAVAR = 'VALUE'
+USAGE = """
   logscan -h
-  logscan logfile -i
-  logscan logfile [OPTIONS]
-""",
+  logscan [OPTIONS] [LOGFILE]"""
+DESCRIPTION ="""
+------------------------------------------------------------------------
+description:
+  logscan is a command-line-tool to get time-specific access to logfiles.
 
+  It can handle rotated and gzipped logfiles or reads from stdin. The log
+  is automatically checked for different timecodes.
+------------------------------------------------------------------------"""
+EPILOG = """
+------------------------------------------------------------------------
+The calculation of a period works on basis of times and durations:
+  no times; no duration:        from start to eof
+  one time; no duration:        from time to eof
+  two times; no duration:       from time-one to time-two
+  no times; positive duration:  form start to end of duration
+  no times; negative duration:  from begin of duration to eof
+  one time; positive duration:  from time to end of duration
+  one time; negative duration:  from begin of duration to time"""
+OPTIONS = {
     '-i' : 'print the number of logfiles, the start- and the end-time',
     '-d' : 'Print the log of a specified day.',
-    '-f' : 'use FORMATSTRING to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
+    '-c' : 'use TIMECODE to parse the date ("%%Y-%%m-%%d %%H:%%M:%%S")',
     '-g' : 'Only lines where PATTERN was found will be printed.',
 
     '-t' : """The first VALUE as date, second as daytime. The Date could be omitted. In that case logscan takes the date of the last log-entry.
 The generic format for the daytime is HHMMSS. You could also use an arbitrary seperator: HH:MM:SS (doing so you don't need two-digit-values). Seconds or seconds and minutes are not obliging. 0322 will be 03:22:00h or just 3 will be 03:00:00h.
 The generic format for the date is DDMM[YY]YY. As well you can use a seperator and one-digit-values. Also the year or the year and the month could be missing. In that case the date will be completed by the actual year and month.
-""",
+Use this option twice to specify two points of time.""",
 
-    '-W' : """Specifies a duration of weeks, days, hours, minutes and seconds for the given N's in this order. Starting with weeks. Following N's are optional. To specify a 'negative' duration put a '-' in front of all N's.
-Durations can be speciefied with all upper-case-options. All given durations are taken together, so that '-D 3 0 25' is the same as '-D 3 -M 25'.
-""",
-    '-D' : 'duration with first N as days.',
-    '-H' : 'duration with first N as hours.',
-    '-M' : 'duration with first N as minutes.',
-    '-S' : 'duration with first N as seconds.',
+    '-W' : """Specifies a duration of weeks, days, hours, minutes and seconds for the given VALUEs in this order. Starting with weeks. Following VALUEs are optional. To specify a 'negative' duration put a '-' in front of all VALUEs.
+Durations can be speciefied with all upper-case-options. All given durations are taken together, so that '-D 3 0 25' is the same as '-D 3 -M 25'.""",
+    '-D' : 'duration with first VALUE as days.',
+    '-H' : 'duration with first VALUE as hours.',
+    '-M' : 'duration with first VALUE as minutes.',
+    '-S' : 'duration with first VALUE as seconds.',
     }
 
 def isfile(value):
@@ -102,56 +85,56 @@ def isfile(value):
 
 class Logscan:
     def __init__(self):
-        self.start = None
-        self.end = None
         self.parser = argparse.ArgumentParser(
             prog='logscan',
-            description=INFO['description'],
-            usage=INFO['usage'],
+            usage=USAGE,
+            description=DESCRIPTION,
+            epilog=EPILOG,
             formatter_class=argparse.RawDescriptionHelpFormatter,
             )
         self.parser.add_argument(
             'logfile',
             type=argparse.FileType('rb', 1),
             nargs='?',
-            default='-'
+            default='-',
+            metavar='LOGFILE',
+            help="If LOGFILE is missing or '-' stdin is read instead."
             )
         self.parser.add_argument(
             '-i',
             '--info',
             action='store_true',
             default=False,
-            help=INFO['-i'],
+            help=OPTIONS['-i'],
             )
         self.parser.add_argument(
-            '-f',
-            '--format',
+            '-c',
+            '--timecode',
             type=str,
-            metavar='FORMATSTRING',
-            help=INFO['-f']
+            metavar='TIMECODE',
+            help=OPTIONS['-c']
             )
         self.parser.add_argument(
             '-g',
             '--grep',
             type=str,
             metavar='PATTERN',
-            help=INFO['-g']
+            help=OPTIONS['-g']
             )
         self.parser.add_argument(
             '-d',
             '--date',
             action=ParseDate,
-            nargs='+',
-            metavar='N',
-            help=INFO['-d']
+            metavar=METAVAR,
+            help=OPTIONS['-d']
             )
         self.parser.add_argument(
             '-t',
             '--time',
             action=AppendDateTimeOrTime,
             nargs='+',
-            metavar='VALUE',
-            help=INFO['-t']
+            metavar=METAVAR,
+            help=OPTIONS['-t']
             )
         self.parser.add_argument(
             '-W',
@@ -159,8 +142,8 @@ class Logscan:
             action=ParseTimeDelta,
             nargs='+',
             default=timedelta(),
-            metavar='N',
-            help=INFO['-W']
+            metavar=METAVAR,
+            help=OPTIONS['-W']
             )
         self.parser.add_argument(
             '-D',
@@ -168,8 +151,8 @@ class Logscan:
             action=ParseTimeDelta,
             nargs='+',
             default=timedelta(),
-            metavar='N',
-            help=INFO['-D']
+            metavar=METAVAR,
+            help=OPTIONS['-D']
             )
         self.parser.add_argument(
             '-H',
@@ -177,8 +160,8 @@ class Logscan:
             action=ParseTimeDelta,
             nargs='+',
             default=timedelta(),
-            metavar='N',
-            help=INFO['-H']
+            metavar=METAVAR,
+            help=OPTIONS['-H']
             )
         self.parser.add_argument(
             '-M',
@@ -186,31 +169,24 @@ class Logscan:
             action=ParseTimeDelta,
             nargs='+',
             default=timedelta(),
-            metavar='N',
-            help=INFO['-M']
+            metavar=METAVAR,
+            help=OPTIONS['-M']
             )
         self.parser.add_argument(
             '-S',
             '--seconds',
             action=ParseTimeDelta,
-            nargs='+',
             default=timedelta(),
-            metavar='N',
-            help=INFO['-S']
+            metavar=METAVAR,
+            help=OPTIONS['-S']
             )
 
-    def process(self):
-        self.args = self.parser.parse_args()
-        self.log = RotatedLogs(self.args.logfile, self.args.format, TIMECODES)
-        self.args.weeks += self.args.days + self.args.hours + self.args.minutes + self.args.seconds
-
-        if self.args.info: self.info()
-        elif self.args.date: self.date()
-        elif self.args.time and self.args.weeks: self.time_duration()
-        elif self.args.time: self.time()
-        elif self.args.weeks: self.duration()
-
-        self.print_log()
+    def get_timecodes(self):
+        timecodes = list()
+        parse = lambda f: [l.rstrip('\n') for l in f if not re.match('[#\n ]+', l)]
+        for file in [f for f in FILES if os.path.isfile(f)]:
+            with open(file) as f: timecodes += parse(f)
+        return timecodes
 
     def prepare_times(self):
         for t in self.args.time:
@@ -218,48 +194,60 @@ class Logscan:
                 index = self.args.time.index(t)
                 self.args.time[index] = datetime.combine(self.log.end.date(), t)
 
+    def run(self):
+        self.args = self.parser.parse_args()
+        self.log = RotatedLogs(self.args.logfile, self.args.timecode)
+        self.args.weeks += self.args.days + self.args.hours + self.args.minutes + self.args.seconds
+
+        if not self.args.timecode: add_timecodes(self.get_timecodes())
+        if self.args.info: self.info()
+        elif self.args.date: self.date()
+        elif self.args.time and self.args.weeks: self.time_duration()
+        elif self.args.time: self.time()
+        elif self.args.weeks: self.duration()
+        else: self.print_lines(self.log.lines)
+
     def info(self):
-        print ''
         print os.path.basename(self.log.name) + ':'
         print '  {0} files'.format(self.log.quantity)
-        print '  starts: {0}'.format(self.log.start.strftime('%d.%m.%Y %H:%M:%S'))
-        print '  ends: {0}'.format(self.log.end.strftime('%d.%m.%Y %H:%M:%S'))
-        print ''
-        sys.exit()
+        print '  start: {0}'.format(self.log.start.strftime('%d.%m.%Y %H:%M:%S'))
+        print '  end: {0}'.format(self.log.end.strftime('%d.%m.%Y %H:%M:%S'))
 
     def date(self):
-        self.start = datetime.combine(self.args.date, time())
-        self.end = datetime.combine(self.args.date + timedelta(days=1), time())
+        start = datetime.combine(self.args.date, time())
+        end = datetime.combine(self.args.date + timedelta(days=1), time())
+        self.print_lines(self.log.get_section(start, end))
 
     def time_duration(self):
         self.prepare_times()
         if self.args.weeks > timedelta(0):
-            self.start = self.args.time[0]
-            self.end = self.args.time[0] + self.args.weeks
+            start = self.args.time[0]
+            end = self.args.time[0] + self.args.weeks
         else:
-            self.start = self.args.time[0] + self.args.weeks
-            self.end = self.args.time[0]
+            start = self.args.time[0] + self.args.weeks
+            end = self.args.time[0]
+        self.print_lines(self.log.get_section(start, end))
 
     def time(self):
         self.prepare_times()
         if len(self.args.time) is 1:
-            self.start = self.args.time[0]
-            self.end = self.log.end
+            start = self.args.time[0]
+            end = self.log.end
         else:
-            self.start = self.args.time[0]
-            self.end = self.args.time[1]
+            start = self.args.time[0]
+            end = self.args.time[1]
+        self.print_lines(self.log.get_section(start, end))
 
     def duration(self):
         if self.args.weeks > timedelta(0):
-            self.start = self.log.start
-            self.end = self.log.start + self.args.weeks
+            start = self.log.start
+            end = self.log.start + self.args.weeks
         else:
-            self.start = self.log.end + self.args.weeks
-            self.end = self.log.end     #TODO: self.log.end will safe the last entry!
+            start = self.log.end + self.args.weeks
+            end = self.log.end
+        self.print_lines(self.log.get_section(start, end))
 
-    def print_log(self):
-        lines = self.log.get_section(self.start, self.end)
-
+    def print_lines(self, lines):
         if not lines:
             print 'no entries between {0} and {1}'.format(self.start, self.end)
 
@@ -270,7 +258,12 @@ class Logscan:
 
 if __name__ == "__main__":
     logscan = Logscan()
-    try: logscan.process()
-    except KeyboardInterrupt: print KeyboardInterrupt.__name__
+    try:
+        logscan.run()
+    except (KeyboardInterrupt, TimeCodeError) as err:
+        print err
+    finally:
+        if hasattr(logscan, 'log'): logscan.log.close()
+
 
 
