@@ -96,6 +96,7 @@ class Log():
             try: time = self._get_linetime(line)
             except: continue
             else: return
+        self.reset_timecode()
         raise TimeCodeError("...no proper timecode was found")
 
     def _get_first_line(self):
@@ -129,6 +130,16 @@ class Log():
 
         return time
 
+    def _get_index(self, time, index=0):
+        if not time: return None
+        if time <= self.start: return 0
+        if time > self.end: return len(self.lines)
+        i = index or 0
+        while time > self._get_linetime(self.lines[i]):
+            i += 1
+            if i == len(self.lines): break
+        return i
+
     @property
     def name(self):
         return self._name
@@ -157,34 +168,24 @@ class Log():
             self._lines = self._fileobj.readlines()
         return self._lines
 
-    def _seek(self, time, index=0):
-        if not time: return None
-        if time <= self.start: return 0
-        if time > self.end: return len(self.lines)
-        i = index or 0
-        while time > self._get_linetime(self.lines[i]):
-            i += 1
-            if i == len(self.lines): break
-        return i
-
     def get_section(self, start=None, end=None):
         "Get loglines between two specified datetimes."
         if start and start > self.end: return list()
         if end and end <= self.start: return list()
         
-        index1 = self._seek(start)
-        index2 = self._seek(end, index1)
+        index1 = self._get_index(start)
+        index2 = self._get_index(end, index1)
         return self.lines[index1:index2]
 
 #        if start and (self.start < start <= self.end):
-#            startindex = self._seek(start)
+#            startindex = self._get_index(start)
 #        if start:
 #            if start >= self.start:
-#                startindex = self._seek(start)
+#                startindex = self._get_index(start)
 #            if start > self.end or end <= self.start: return list()
 #            elif start <= self.start and end > self.end: return self.lines
 #            elif start > self.start and end > self.end:
-#                return self.lines[self._seek(start):]
+#                return self.lines[self._get_index(start):]
 #            elif start
 
 #        lines = []
@@ -259,7 +260,7 @@ class RotatedLogs():
         if end and end <= self.start: return list()
         if not (start or end): return self.lines
 
-        files = self._files
+        files = self._files[:]
         files.reverse()
         lines = list()
         for file in files:
