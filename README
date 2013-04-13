@@ -1,100 +1,81 @@
-Installation:
-tar -xzf logscan-1.x.x.tar.gz
-cd logscan-1.x.x/
-sudo python setup.py install
+Installation from tarball:
+    tar -xzf logscan-1.x.x.tar.gz
+    cd logscan-1.x.x/
+    sudo python setup.py install
 
-You could specify different formats logscan automatically check the logfile for.
-Have a look at /usr/local/etc/logscan.conf.
-
-Bugs and suggestions can be reported to thomaslfuss[at]gmx.de
+Installation via pypi:
+    sudo pip install logscan
 
 
-This is the helptext (accessed by logscan -h):
 usage: 
   logscan -h
-  logscan logfile -i
-  logscan logfile [OPTIONS]
+  logscan [OPTIONS] [LOGFILE]
 
-exemples:
-  logscan logfile -H 4 30  or  logscan logfile -t 4 30
-                        from 4 hours and 30 minutes before last 
-                        log-entry till the end of file
-  logscan logfile -s 0105 2210 -m 50
-                        from 5.1. 22:10 o'clock till 5.1. 23:00 o'clock
-                        (50 Minutes further)
-  logscan logfile -e 23 -w 2 0 5
-                        from two weeks and 5 hours before the date of the 
-                        last entry at 23:00 o'clock till this then
+------------------------------------------------------------------------
+description:
+  logscan is a command-line-tool to get time-specific access to logfiles.
 
-Get time-specific access to log-files, while rotated logfiles that are counted
-up (e.g. logfile.log, logfile.log.1, logfile.log.2.gz ...) are automatically
-taken together -even if they are gzipped. Different date-time-formats are
-supported, inclusive simple timestamps as a huge number of seconds with three
-decimal-places, e.g. 123456789.123.
+  It can handle rotated and gzipped logfiles or reads from stdin. The log
+  is automatically checked for different timecodes.
+------------------------------------------------------------------------
 
 positional arguments:
-  logfile
+  LOGFILE               If LOGFILE is missing or '-' stdin is read instead.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i, --info            show Informations about the LOGFILE
-  -s VALUE [VALUE ...], --start-time VALUE [VALUE ...]
-                        If there are two VALUES the first one is interpreted
-                        as an expression for a date and the second one for a
-                        time. If there is only one VALUE it is taken as an
-                        expression for a time and the date will be
-                        supplemented with the date of the last entry of the
-                        logfile. VALUES can be given in various formats.
-                        Exemples for dates are: 120123 --> 23.1.2012, 12:0123
-                        --> 23.1.2012, 12-01-23 --> 23.1.2012, 20120123 -->
-                        23.1.2012, 12-1-23 --> 23.1.2012. Missing values will
-                        be complement to the last possible date in the past.
-                        For the following exemples we take the 16.01.2012 as
-                        the actual date: 03 --> 03.01.2012; 22 --> 22.12.2011;
-                        0315 --> 15.03.2011 Times are handled in a similar
-                        way. But when you dont get at least three numbers out
-                        of the VALUE, then the given ones are taken first as
-                        hour, second as minutes. For exemple: 120530, 12;5;30
-                        or 1205-30 are all taken as 12:05:30 o'clock. 1205 or
-                        12:05 is 12:05:00, and 12 is simple 12:00:00. You are
-                        free to use any delimiter you want. Or no delimiter.
-                        But then you have to care to use only double-digit
-                        numbers like "05". The datetime you get will specify
-                        the start of the output. So you can use -s with only a
-                        single digit and you get the log of the day of the
-                        last log-entry from the hour of the digit on.
-  -e VALUE [VALUE ...], --end-time VALUE [VALUE ...]
-                        works the same way as --start-time, but specify the
-                        end-time of the output.
-  -t N [N ...], --time-span N [N ...]
-                        First N is interpreted as the number of hours, second
-                        as the number of minutes, third as the number of
-                        seconds while the second and third number is optional.
-                        All together will be interpreted as a timespan, that
-                        will be either add to the start-time if given by
-                        --start-time, or subtracted from the time where the
-                        logfile ends or if given from the specified end-time
-                        (see --start-time and --end-time). Mention that all
-                        data given by the Options --time-span, --weeks,
-                        --days, --hours, --minutes are add up to one timespan,
-                        that is used as descriped above.
-  -w N [N ...], --weeks N [N ...]
-                        The given Numbers are interpreted the same way as for
-                        --time-span with the difference that the first N is
-                        interpreted as the Number of weeks, second as the
-                        Number for days, then hours, minutes, seconds. Only
-                        the first N is required.
-  -d N [N ...], --days N [N ...]
-                        Same as --weeks but start with days.
-  -H N [N ...], --hours N [N ...]
-                        Same as --weeks but start with hours.
-  -m N [N ...], --minutes N [N ...]
-                        Same as --weeks but start with minutes.
-  -D N [N ...], --date N [N ...]
-                        Print the log of a specified day.
-  -S FORMATSTRING, --strf FORMATSTRING
-                        use FORMATSTRING to parse the date ("%Y-%m-%d
-                        %H:%M:%S")
+  -i, --info            print the number of logfiles, the start- and the end-
+                        time
+  -c TIMECODE, --timecode TIMECODE
+                        use TIMECODE to parse the date ("%Y-%m-%d %H:%M:%S")
   -g PATTERN, --grep PATTERN
                         Only lines where PATTERN was found will be printed.
+  -d VALUE, --date VALUE
+                        Print the log of a specified day.
+  -t VALUE [VALUE ...], --time VALUE [VALUE ...]
+                        The first VALUE as date, second as daytime. The Date
+                        could be omitted. In that case logscan takes the date
+                        of the last log-entry. The generic format for the
+                        daytime is HHMMSS. You could also use an arbitrary
+                        seperator: HH:MM:SS (doing so you don't need two-
+                        digit-values). Seconds or seconds and minutes are not
+                        obliging. 0322 will be 03:22:00h or just 3 will be
+                        03:00:00h. The generic format for the date is
+                        DDMM[YY]YY. As well you can use a seperator and one-
+                        digit-values. Also the year or the year and the month
+                        could be missing. In that case the date will be
+                        completed by the actual year and month. Use this
+                        option twice to specify two points of time.
+  -W VALUE [VALUE ...], --weeks VALUE [VALUE ...]
+                        Specifies a duration of weeks, days, hours, minutes
+                        and seconds for the given VALUEs in this order.
+                        Starting with weeks. Following VALUEs are optional. To
+                        specify a 'negative' duration put a '-' in front of
+                        all VALUEs. Durations can be speciefied with all
+                        upper-case-options. All given durations are taken
+                        together, so that '-D 3 0 25' is the same as '-D 3 -M
+                        25'.
+  -D VALUE [VALUE ...], --days VALUE [VALUE ...]
+                        duration with first VALUE as days.
+  -H VALUE [VALUE ...], --hours VALUE [VALUE ...]
+                        duration with first VALUE as hours.
+  -M VALUE [VALUE ...], --minutes VALUE [VALUE ...]
+                        duration with first VALUE as minutes.
+  -S VALUE, --seconds VALUE
+                        duration with first VALUE as seconds.
+
+------------------------------------------------------------------------
+The calculation of a period works on basis of times and durations:
+  no times; no duration:        from start to eof
+  one time; no duration:        from time to eof
+  two times; no duration:       from time-one to time-two
+  no times; positive duration:  form start to end of duration
+  no times; negative duration:  from begin of duration to eof
+  one time; positive duration:  from time to end of duration
+  one time; negative duration:  from begin of duration to time
+------------------------------------------------------------------------
+
+To specify different time-formats logscan should automatically check the
+logfiles for use the file logscan.conf (probably installed under
+/usr/local/etc/).
 

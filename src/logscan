@@ -56,7 +56,13 @@ The calculation of a period works on basis of times and durations:
   no times; positive duration:  form start to end of duration
   no times; negative duration:  from begin of duration to eof
   one time; positive duration:  from time to end of duration
-  one time; negative duration:  from begin of duration to time"""
+  one time; negative duration:  from begin of duration to time
+------------------------------------------------------------------------
+
+To specify different time-formats logscan should automatically check the
+logfiles for use the file logscan.conf (probably installed under
+/usr/local/etc/).
+"""
 OPTIONS = {
     '-i' : 'print the number of logfiles, the start- and the end-time',
     '-d' : 'Print the log of a specified day.',

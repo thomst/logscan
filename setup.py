@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-VERSION = "0.2.3"
+VERSION = "0.3"
 
 setup( 
     name = "logscan", 
@@ -11,12 +11,13 @@ setup(
     download_url = "https://github.com/downloads/thomst/logscan/logscan-{version}.tar.gz".format(version=VERSION),
     description = 'Command-line-tool to get time-specific access to log-files.',
     long_description = "logscan is a command-line-tool to get time-specific access to logfiles. It can handle rotated and gzipped logfiles or reads from stdin. The log is automatically checked for different timecodes.",
-    py_modules = ["logscanlib", "timeparse"],
+    py_modules = ["logscanlib"],
     package_dir = {'' : 'src'},
     scripts = ["src/logscan"],
     data_files = [('etc', ['src/logscan.conf'])],
+install_requires = ['timeparse'],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
