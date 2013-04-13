@@ -88,11 +88,13 @@ class Log():
 
     @classmethod
     def _detect_timecode(cls, line):
+        """Try to find a matching timecode.
+        """
         for timecode in TIMECODES:
             cls._set_timecode(timecode)
             try: time = cls._get_linetime(line)
             except: continue
-            else: return
+            else: return time
         cls._timecode = None
         raise TimeCodeError("...no proper timecode was found")
 
@@ -100,7 +102,7 @@ class Log():
     def _get_linetime(cls, line):
         """Get the logtime of a line.
         """
-        if not cls._timecode: cls._detect_timecode(line)
+        if not cls._timecode: return cls._detect_timecode(line)
         match = cls._regexp.search(line)
         if not match: raise TimeCodeError("invalid timecode: '%s'" % cls._timecode)
 
@@ -140,12 +142,14 @@ class Log():
 
     @property
     def name(self):
-        "filename"
+        """filename
+        """
         return self._name
 
     @property
     def start(self):
-        "start-time of the log"
+        """start-time of the log
+        """
         if not self._start:
             first_line = self._get_first_line()
             self._start = self._get_linetime(first_line)
@@ -153,7 +157,8 @@ class Log():
 
     @property
     def end(self):
-        "end-time of the log"
+        """end-time of the log
+        """
         if not self._end:
             last_line = self._get_last_line()
             self._end = self._get_linetime(last_line)
@@ -161,7 +166,8 @@ class Log():
 
     @property
     def lines(self):
-        "all lines of the log"
+        """all lines of the log
+        """
         if not self._lines:
             self._fileobj.seek(0)
             self._lines = self._fileobj.readlines()
@@ -177,7 +183,8 @@ class Log():
         return self.lines[index1:index2]
 
     def close(self):
-        "close the file"
+        """Close the fileobject.
+        """
         self._fileobj.close()
 
 
@@ -203,7 +210,8 @@ class RotatedLogs():
 
     @property
     def name(self):
-        "filename"
+        """filename
+        """
         return self._name
 
     @property
@@ -213,23 +221,27 @@ class RotatedLogs():
 
     @property
     def start(self):
-        "start-time of log"
+        """start-time of the log
+        """
         return self._files[0].start
 
     @property
     def end(self):
-        "end-time of log"
+        """end-time of the log
+        """
         return self._files[-1].end
 
     @property
     def lines(self):
-        "lines of all logfiles"
+        """lines of all logfiles
+        """
         lines = list()
         for file in self._files: lines += file.lines
         return lines
 
     def get_section(self, start=None, end=None):
-        "Get loglines between two specified datetimes."
+        """Get loglines between two specified datetimes.
+        """
         if start and start > self.end: return list()
         if end and end <= self.start: return list()
         if not (start or end): return self.lines
@@ -245,7 +257,8 @@ class RotatedLogs():
         return lines
 
     def close(self):
-        "close all logfiles"
+        """Close all logfiles.
+        """
         for file in self._files: file.close()
 
 
