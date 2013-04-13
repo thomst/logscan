@@ -29,7 +29,7 @@ class DeltaDateTime:
     """Convert strings to datetime-objects.
     """
     def string_to_delta(self, string):
-        """Convert a string to a timedelta-object of the datetime-class.
+        """Convert a string to a timedelta-object.
         """
         try: delta = [int(x) for x in digs.findall(string)]
         except: raise ArgumentError(
@@ -41,7 +41,7 @@ class DeltaDateTime:
         return delta
 
     def string_to_time(self, string):
-        """Convert a string to a time-object of the datetime-class.
+        """Convert a string to a time-object.
         """
         time = [int(x) for x in two.findall(one.sub('0\g<0>', string))]
         try: time = datetime.time(*time)
@@ -52,7 +52,7 @@ class DeltaDateTime:
         return time
 
     def string_to_date(self, string):
-        """Convert a string to a date-object of the datetime-class.
+        """Convert a string to a date-object.
         """
         today = datetime.date.today()
         date = two.findall(one.sub('0\g<0>', string))
@@ -71,7 +71,7 @@ class DeltaDateTime:
         return date
 
     def strings_to_datetime(self, datestring, timestring):
-        """Convert two string to a datetime-object of the datetime-class.
+        """Convert two string to a datetime-object.
         """
         date = self.string_to_date(datestring)
         time = self.string_to_time(timestring)
@@ -80,7 +80,7 @@ class DeltaDateTime:
 
 
 class ParseDate(argparse.Action, DeltaDateTime):
-    """Parse a commandline-argument to a datetime.date-object.
+    """Parse a commandline-argument to a date-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         values = ' '.join(list(values))
@@ -89,7 +89,7 @@ class ParseDate(argparse.Action, DeltaDateTime):
 
 
 class ParseTime(argparse.Action, DeltaDateTime):
-    """Parse a commandline-argument to a datetime.time-object.
+    """Parse a commandline-argument to a time-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         values = ' '.join(list(values))
@@ -98,7 +98,7 @@ class ParseTime(argparse.Action, DeltaDateTime):
 
 
 class ParseTimeDelta(argparse.Action, DeltaDateTime):
-    """Parse a commandline-argument to a datetime.timedelta-object.
+    """Parse a commandline-argument to a timedelta-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         values = ' '.join(list(values))
@@ -107,7 +107,7 @@ class ParseTimeDelta(argparse.Action, DeltaDateTime):
 
 
 class ParseDateTime(argparse.Action, DeltaDateTime):
-    """Parse a commandline-argument to a datetime.datetime-object.
+    """Parse a commandline-argument to a datetime-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         date_time = self.strings_to_datetime(values[0], values[1])
@@ -115,8 +115,7 @@ class ParseDateTime(argparse.Action, DeltaDateTime):
 
 
 class ParseDateTimeOrTime(argparse.Action, DeltaDateTime):
-    """Parse an argument to either a datetime.time or -.datetime-object.
-    Depending on the values passed.
+    """Parse one string to a time-object or two strings to a datetime-object.
     """
     def __call__(self, parser, namespace, values, option_string=None):
         if len(values) == 1: obj = self.string_to_time(values[0])

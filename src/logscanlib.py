@@ -23,7 +23,6 @@ import sys
 import datetime
 from gzip import GzipFile
 
-STDIN = '<stdin>'
 CODEMAP = {
     '%Y' : '(?P<Y>\d{4})',
     '%m' : '(?P<m>\d{2})',
@@ -75,7 +74,8 @@ class Log():
         self._name = fileobj.name
         if self.name.endswith('.gz'): fileobj = GzipFile(fileobj=fileobj)
         self._fileobj = fileobj
-        self._lines = self._fileobj.readlines() if self.name == STDIN else None
+        if self.name == sys.stdin.name: self._lines = self._fileobj.readlines()
+        else: self._lines = None
         self._start = None
         self._end = None
 
@@ -219,7 +219,7 @@ class RotatedLogs():
     def __init__(self, fileobj, timecode=None):
         self._name = fileobj.name
         self._files = [Log(fileobj, timecode)]
-        if self.name != '<stdin>': self._rotate()
+        if self.name != sys.stdin.name: self._rotate()
 
     def _rotate(self):
         i = 1
