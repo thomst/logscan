@@ -87,17 +87,34 @@ class Log():
         cls._regexp = re.compile(timecode)
 
     @classmethod
-    def reset_timecode(cls):
-        cls._timecode = None
-
-    def _detect_timecode(self, line):
+    def _detect_timecode(cls, line):
         for timecode in TIMECODES:
-            self._set_timecode(timecode)
-            try: time = self._get_linetime(line)
+            cls._set_timecode(timecode)
+            try: time = cls._get_linetime(line)
             except: continue
             else: return
-        self.reset_timecode()
+        cls._timecode = None
         raise TimeCodeError("...no proper timecode was found")
+
+    @classmethod
+    def _get_linetime(cls, line):
+        """Get the logtime of a line.
+        """
+        if not cls._timecode: cls._detect_timecode(line)
+        match = cls._regexp.search(line)
+        if not match: raise TimeCodeError("invalid timecode: '%s'" % cls._timecode)
+
+        if cls._timecode == 'timestamp':
+            time = datetime.datetime.fromtimestamp(float(match.group()))
+        else:
+            time = datetime.datetime.strptime(match.group(), cls._timecode)
+
+            if time.year == 1900:   #TODO: maybe find a more elegant solution
+                today = datetime.datetime.today()
+                time = time.replace(year=today.year)
+                if time > today: time = time.replace(year=today.year - 1)
+
+        return time
 
     def _get_first_line(self):
         if self._lines: return self.lines[0]
@@ -111,25 +128,6 @@ class Log():
         self._fileobj.seek(-400, 2)
         return self._fileobj.readlines()[-1]
 
-    def _get_linetime(self, line):
-        """Get the logtime of a line.
-        """
-        if not self._timecode: self._detect_timecode(line)
-        match = self._regexp.search(line)
-        if not match: raise TimeCodeError("invalid timecode: '%s'" % self._timecode)
-
-        if self._timecode == 'timestamp':
-            time = datetime.datetime.fromtimestamp(float(match.group()))
-        else:
-            time = datetime.datetime.strptime(match.group(), self._timecode)
-
-            if time.year == 1900:   #TODO: maybe find a more elegant solution
-                today = datetime.datetime.today()
-                time = time.replace(year=today.year)
-                if time > today: time = time.replace(year=today.year - 1)
-
-        return time
-
     def _get_index(self, time, index=0):
         if not time: return None
         if time <= self.start: return 0
@@ -142,11 +140,12 @@ class Log():
 
     @property
     def name(self):
+        "filename"
         return self._name
 
     @property
     def start(self):
-        "time the log starts with"
+        "start-time of the log"
         if not self._start:
             first_line = self._get_first_line()
             self._start = self._get_linetime(first_line)
@@ -154,7 +153,7 @@ class Log():
 
     @property
     def end(self):
-        "time the log ends with"
+        "end-time of the log"
         if not self._end:
             last_line = self._get_last_line()
             self._end = self._get_linetime(last_line)
@@ -177,39 +176,8 @@ class Log():
         index2 = self._get_index(end, index1)
         return self.lines[index1:index2]
 
-#        if start and (self.start < start <= self.end):
-#            startindex = self._get_index(start)
-#        if start:
-#            if start >= self.start:
-#                startindex = self._get_index(start)
-#            if start > self.end or end <= self.start: return list()
-#            elif start <= self.start and end > self.end: return self.lines
-#            elif start > self.start and end > self.end:
-#                return self.lines[self._get_index(start):]
-#            elif start
-
-#        lines = []
-#        got = False
-#        for line in self.lines:
-#            time = self._get_linetime(line)
-#            if time > end: break
-#            if time >= start: got = True
-#            if got: lines.append(line)
-
-#        return lines
-
-        #TODO: check if this is more perfomant
-#        lines = []
-#        got = start <= self.start
-#        toend = end > self.end
-#        for line in self.lines:
-#            time = self._get_linetime(line)
-#            if time:
-#                if not got and time >= start: got = True
-#                if not toend and time >= end: break
-#                if got: lines.append(line)
-
     def close(self):
+        "close the file"
         self._fileobj.close()
 
 
@@ -235,27 +203,33 @@ class RotatedLogs():
 
     @property
     def name(self):
+        "filename"
         return self._name
 
     @property
     def quantity(self):
+        "number of rotated logfiles"
         return len(self._files)
 
     @property
     def start(self):
+        "start-time of log"
         return self._files[0].start
 
     @property
     def end(self):
+        "end-time of log"
         return self._files[-1].end
 
     @property
     def lines(self):
+        "lines of all logfiles"
         lines = list()
         for file in self._files: lines += file.lines
         return lines
 
     def get_section(self, start=None, end=None):
+        "Get loglines between two specified datetimes."
         if start and start > self.end: return list()
         if end and end <= self.start: return list()
         if not (start or end): return self.lines
@@ -271,6 +245,7 @@ class RotatedLogs():
         return lines
 
     def close(self):
+        "close all logfiles"
         for file in self._files: file.close()
 
 
