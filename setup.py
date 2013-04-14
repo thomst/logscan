@@ -8,7 +8,7 @@ setup(
     author = "Thomas Leichtfuss", 
     author_email = "thomaslfuss@gmx.de",
     url = "https://github.com/thomst/logscan",
-    download_url = "https://github.com/downloads/thomst/logscan/logscan-{version}.tar.gz".format(version=VERSION),
+    download_url = "https://pypi.python.org/packages/source/l/logscan/logscan-{version}.tar.gz".format(version=VERSION),
     description = 'Command-line-tool to get time-specific access to log-files.',
     long_description = "logscan is a command-line-tool to get time-specific access to logfiles. It can handle rotated and gzipped logfiles or reads from stdin. The log is automatically checked for different timecodes.",
     py_modules = ["logscanlib"],
