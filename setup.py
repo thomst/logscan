@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 setup( 
     name = "logscan", 
@@ -12,9 +12,8 @@ setup(
     description = 'Command-line-tool to get time-specific access to log-files.',
     long_description = open('README.rst').read(),
     py_modules = ["logscanlib"],
-    package_dir = {'' : 'src'},
-    scripts = ["src/logscan"],
-    data_files = [('etc', ['src/logscan.conf'])],
+    scripts = ["logscan"],
+    data_files = [('etc', ['logscan.conf'])],
     install_requires = ['timeparse'],
     classifiers=[
         'Development Status :: 4 - Beta',
