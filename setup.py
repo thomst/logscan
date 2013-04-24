@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-VERSION = "0.3"
+VERSION = "0.3.1"
 
 setup( 
     name = "logscan", 
