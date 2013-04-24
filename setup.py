@@ -1,4 +1,5 @@
 from distutils.core import setup
+import os
 
 VERSION = "0.3.2"
 
@@ -10,7 +11,7 @@ setup(
     url = "https://github.com/thomst/logscan",
     download_url = "https://pypi.python.org/packages/source/l/logscan/logscan-{version}.tar.gz".format(version=VERSION),
     description = 'Command-line-tool to get time-specific access to log-files.',
-    long_description = open('README.rst').read(),
+    long_description = open('README.rst').read() if os.path.isfile('README.rst') else str(),
     py_modules = ["logscanlib"],
     scripts = ["logscan"],
     data_files = [('etc', ['logscan.conf'])],
