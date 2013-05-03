@@ -17,14 +17,11 @@ import os
 import sys
 import re
 import argparse
+import timeparse
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
 
-from timeparse import AppendDateTimeOrTime
-from timeparse import ParseDateTimeOrTime
-from timeparse import ParseTimeDelta
-from timeparse import ParseDate
 from logscanlib import add_timecodes
 from logscanlib import RotatedLogs
 from logscanlib import TimeCodeError
@@ -156,46 +153,46 @@ class Logscan:
         self.parser.add_argument(
             '-d',
             '--date',
-            action=ParseDate,
+            action=timeparse.ParseDate,
             )
         self.parser.add_argument(
             '-t',
             '--time',
-            action=AppendDateTimeOrTime,
+            action=timeparse.AppendTimeOrDatetime,
             nargs='+',
             )
         self.parser.add_argument(
             '-W',
             '--weeks',
-            action=ParseTimeDelta,
+            action=timeparse.ParseTimedelta,
             nargs='+',
             default=timedelta(),
             )
         self.parser.add_argument(
             '-D',
             '--days',
-            action=ParseTimeDelta,
+            action=timeparse.ParseTimedelta,
             nargs='+',
             default=timedelta(),
             )
         self.parser.add_argument(
             '-H',
             '--hours',
-            action=ParseTimeDelta,
+            action=timeparse.ParseTimedelta,
             nargs='+',
             default=timedelta(),
             )
         self.parser.add_argument(
             '-M',
             '--minutes',
-            action=ParseTimeDelta,
+            action=timeparse.ParseTimedelta,
             nargs='+',
             default=timedelta(),
             )
         self.parser.add_argument(
             '-S',
             '--seconds',
-            action=ParseTimeDelta,
+            action=timeparse.ParseTimedelta,
             default=timedelta(),
             )
 
