@@ -21,6 +21,7 @@ import timeparse
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
+from datetime import date
 
 from logscanlib import add_timecodes
 from logscanlib import RotatedLogs
@@ -35,7 +36,7 @@ FILES = (
 
 USAGE = """usage: 
   logscan -h
-  logscan [OPTIONS] [LOGFILE]
+  logscan [LOGFILE] [OPTIONS]
 """
 
 HELP = """usage: 
