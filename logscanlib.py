@@ -127,8 +127,12 @@ class Log():
         # gzip.seek don't support seeking from end on
         if self._lines or isinstance(self._fileobj, GzipFile):
             return self.lines[-1]
-        self._fileobj.seek(-400, 2)
-        return self._fileobj.readlines()[-1]
+        else:
+            size = os.stat(self.name).st_size
+            if size < 400: seek = -size
+            else: seek = -400
+            self._fileobj.seek(seek, 2)
+            return self._fileobj.readlines()[-1]
 
     def _get_index(self, time, index=0):
         if not time: return None
