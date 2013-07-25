@@ -28,7 +28,7 @@ logscan --help ::
 
     usage: 
       logscan -h
-      logscan [OPTIONS] [LOGFILE]
+      logscan [LOGFILE] [OPTIONS]
 
     description:
       Get time-specific access to logfiles.
@@ -39,7 +39,7 @@ logscan --help ::
       logscan.conf.
 
 
-    positional arguments:
+    positional argument:
       LOGFILE                   If LOGFILE is missing or '-' stdin is read instead.
 
     optional arguments:
@@ -49,8 +49,10 @@ logscan --help ::
       -g, --grep PATTERN        print only lines where PATTERN was found
       -d, --date DATE           print all log-entries of DATE
 
-    argument for times:
-      -t, --time [DATE] TIME    specify a point of time
+    arguments for times:
+      -d, --date DATE           print all log-entries of DATE
+      -t, --time [DATE] TIME    specify a point of time; use it twice to specify
+                                a start- and end-time
 
     argruments for durations:
       -W, --weeks WEEKS [DAYS [HOURS [MINUTES [SECONDS]]]]
@@ -61,14 +63,11 @@ logscan --help ::
 
 
     times (DATE and TIME):
-      If Date is omitted the date of the last log-entry will be taken. The generic
-      format for the daytime is HHMMSS. You could also use an arbitrary seperator
-      (e.g. HH:MM:SS). Doing so you don't need two- digit-values. Seconds or seconds
-      and minutes are not obliging. 0322 will be 03:22:00h or just 3 will be
-      03:00:00h. The generic format for the date is DDMM[YY]YY. As well you can use
-      a seperator and one- digit-values. Also the year or the year and the month
-      could be missing. In that case the date will be completed by the actual year
-      and month. Use this option twice to specify two points of time.
+      DATE and TIME could be in any format. Logscan tries hard to interpret the input
+      as valid date or time.
+      If DATE is omitted for --time logscan uses the date of the last log-entry.
+      If DATE is incomplete logscan completes it with the year or the year and month
+      of the actual date.
 
 
     durations:
@@ -100,7 +99,9 @@ logscan --help ::
       A list of all available format-codes can be recieved from 'date --help'.
 
 
-    Please report bugs at https://github.com/thomst/logscan/issues
+Contribution
+------------
+Every kind of feedback is very welcome.
 
 
 Reporting Bugs
