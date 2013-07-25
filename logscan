@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-__version__ = '0.4.2'
+__version__ = '0.5.0'
 
 import os
 import sys
@@ -46,7 +46,6 @@ USAGE = """usage:
   logscan [LOGFILE] [OPTIONS]
 """
 
-#TODO: reworking regarding to timeparser
 HELP = """usage: 
   logscan -h
   logscan [LOGFILE] [OPTIONS]
@@ -76,11 +75,8 @@ arguments for times:
                             a start- and end-time
 
 argruments for durations:
-  -W, --weeks WEEKS [DAYS [HOURS [MINUTES [SECONDS]]]]
-  -D, --days DAYS [HOURS [MINUTES [SECONDS]]]
-  -H, --hours HOURS [MINUTES [SECONDS]]
-  -M, --minutes MINUTES [SECONDS]
-  -S, --seconds SECONDS
+  -p, --plus [WEEKS] [DAYS] [HOURS] [MINUTES] [SECONDS]
+  -m, --minus [WEEKS] [DAYS] [HOURS] [MINUTES] [SECONDS]
 
 
 times (DATE and TIME):
@@ -92,10 +88,12 @@ times (DATE and TIME):
 
 
 durations:
-  durations are specified with all upper-case-letter-options (-W, -D, -H,-M, -S),
-  while all specifications are taken together, so that '-D 3 0 25' is the same
-  as '-D 3 -M 25'. To specify a retrograde duration use a minus for all values
-  (e.g. -D -4 -3 -2).
+  To specify a positive duration use --plus, for a negative use --minus.
+  All values are interpreted as weeks, days, hours, minutes or seconds -in this
+  order starting with days. Alternatively you can flag the values with letters
+  matching those keywords.
+  So to specify a positive duration of 3 days and 4 minutes you can either do
+  "--plus 3 0 4" or --plus 3d 4m.
 
 
 Which period to print is defined as follows:
@@ -123,9 +121,7 @@ time-code-formats:
 Please report bugs at https://github.com/thomst/logscan/issues"""
 
 #TODO: arg for not-rotating
-#TODO: arg for retrograde timedeltas
 #TODO: set timeparser.TODAY to log.end
-#TODO: config-file for accepted cmd-line time-formats
 class Logscan:
     def __init__(self):
         self.parser = argparse.ArgumentParser(
@@ -173,37 +169,17 @@ class Logscan:
             nargs='+',
             )
         self.parser.add_argument(
-            '-W',
-            '--weeks',
+            '-p',
+            '--plus',
             action=timeparse.ParseTimedelta,
             nargs='+',
             default=timedelta(),
             )
         self.parser.add_argument(
-            '-D',
-            '--days',
+            '-m',
+            '--minus',
             action=timeparse.ParseTimedelta,
             nargs='+',
-            default=timedelta(),
-            )
-        self.parser.add_argument(
-            '-H',
-            '--hours',
-            action=timeparse.ParseTimedelta,
-            nargs='+',
-            default=timedelta(),
-            )
-        self.parser.add_argument(
-            '-M',
-            '--minutes',
-            action=timeparse.ParseTimedelta,
-            nargs='+',
-            default=timedelta(),
-            )
-        self.parser.add_argument(
-            '-S',
-            '--seconds',
-            action=timeparse.ParseTimedelta,
             default=timedelta(),
             )
 
@@ -227,14 +203,15 @@ class Logscan:
 
     def process_log(self):
         self.log = RotatedLogs(self.args.logfile, self.args.timecode)
-        self.args.weeks += self.args.days + self.args.hours + self.args.minutes + self.args.seconds
 
         if not self.args.timecode: add_timecodes(self.get_timecodes())
         if self.args.info: self.info()
         elif self.args.date: self.date()
-        elif self.args.time and self.args.weeks: self.time_duration()
+        elif self.args.time and self.args.plus: self.time_and_positive_duration()
+        elif self.args.time and self.args.minus: self.time_and_negative_duration()
         elif self.args.time: self.time()
-        elif self.args.weeks: self.duration()
+        elif self.args.plus: self.positive_duration()
+        elif self.args.minus: self.negative_duration()
         else: self.print_section()
 
     def info(self):
@@ -248,14 +225,16 @@ class Logscan:
         end = datetime.combine(self.args.date + timedelta(days=1), time())
         self.print_section(start, end)
 
-    def time_duration(self):
+    def time_and_positive_duration(self):
         self.prepare_times()
-        if self.args.weeks > timedelta(0):
-            start = self.args.time[0]
-            end = self.args.time[0] + self.args.weeks
-        else:
-            start = self.args.time[0] + self.args.weeks
-            end = self.args.time[0]
+        start = self.args.time[0]
+        end = self.args.time[0] + self.args.plus
+        self.print_section(start, end)
+
+    def time_and_negative_duration(self):
+        self.prepare_times()
+        start = self.args.time[0] - self.args.minus
+        end = self.args.time[0]
         self.print_section(start, end)
 
     def time(self):
@@ -268,13 +247,14 @@ class Logscan:
             end = self.args.time[1]
         self.print_section(start, end)
 
-    def duration(self):
-        if self.args.weeks > timedelta(0):
-            start = None
-            end = self.log.start + self.args.weeks
-        else:
-            start = self.log.end + self.args.weeks
-            end = None
+    def positive_duration(self):
+        start = None
+        end = self.log.start + self.args.plus
+        self.print_section(start, end)
+
+    def negative_duration(self):
+        start = self.log.end - self.args.minus
+        end = None
         self.print_section(start, end)
 
     def print_section(self, start=None, end=None):
