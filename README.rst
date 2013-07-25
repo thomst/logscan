@@ -55,11 +55,8 @@ logscan --help ::
                                 a start- and end-time
 
     argruments for durations:
-      -W, --weeks WEEKS [DAYS [HOURS [MINUTES [SECONDS]]]]
-      -D, --days DAYS [HOURS [MINUTES [SECONDS]]]
-      -H, --hours HOURS [MINUTES [SECONDS]]
-      -M, --minutes MINUTES [SECONDS]
-      -S, --seconds SECONDS
+      -p, --plus [WEEKS] [DAYS] [HOURS] [MINUTES] [SECONDS]
+      -m, --minus [WEEKS] [DAYS] [HOURS] [MINUTES] [SECONDS]
 
 
     times (DATE and TIME):
@@ -71,10 +68,12 @@ logscan --help ::
 
 
     durations:
-      durations are specified with all upper-case-letter-options (-W, -D, -H,-M, -S),
-      while all specifications are taken together, so that '-D 3 0 25' is the same
-      as '-D 3 -M 25'. To specify a retrograde duration use a minus for all values
-      (e.g. -D -4 -3 -2).
+      To specify a positive duration use --plus, for a negative use --minus.
+      All values are interpreted as weeks, days, hours, minutes or seconds -in this
+      order starting with days. Alternatively you can flag the values with letters
+      matching those keywords.
+      So to specify a positive duration of 3 days and 4 minutes you can either do
+      "--plus 3 0 4" or --plus 3d 4m.
 
 
     Which period to print is defined as follows:
