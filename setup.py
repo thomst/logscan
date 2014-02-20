@@ -1,7 +1,7 @@
 from distutils.core import setup
 import os
 
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 
 setup( 
     name = "logscan", 
@@ -15,7 +15,6 @@ setup(
     py_modules = ["logscanlib"],
     scripts = ["logscan"],
     data_files = [('etc', ['logscan.conf'])],
-    install_requires = ['timeparse'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',

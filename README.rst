@@ -106,7 +106,7 @@ Every kind of feedback is very welcome.
 Reporting Bugs
 --------------
 Please report bugs at github issue tracker:
-https://github.com/thomst/timeparse/issues
+https://github.com/thomst/logscan/issues
 
 
 Author
