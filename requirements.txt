@@ -1,4 +1,4 @@
 argparse==1.2.1
 daytime==0.4
 timeparse==0.5.4
-timeparser==0.7.3
+timeparser==0.7.4

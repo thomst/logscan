@@ -16,19 +16,19 @@
 __version__ = '0.5.1'
 
 import os
-import sys
 import re
 import argparse
-import timeparse
-import timeparser
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
-from datetime import date
+
+import timeparse
+import timeparser
 
 from logscanlib import add_timecodes
 from logscanlib import RotatedLogs
 from logscanlib import TimeCodeError
+
 
 timeparser.TimeFormats.config(try_hard=True)
 timeparser.DateFormats.config(try_hard=True)

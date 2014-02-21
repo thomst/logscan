@@ -15,6 +15,12 @@ setup(
     py_modules = ["logscanlib"],
     scripts = ["logscan"],
     data_files = [('etc', ['logscan.conf'])],
+    install_requires = [
+        'timeparser,'
+        'argparse',
+        'daytime',
+        'timeparse'
+    ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
