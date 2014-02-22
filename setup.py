@@ -16,7 +16,7 @@ setup(
     scripts = ["logscan"],
     data_files = [('etc', ['logscan.conf'])],
     install_requires = [
-        'timeparser,'
+        'timeparser',
         'argparse',
         'daytime',
         'timeparse'
