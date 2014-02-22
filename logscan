@@ -15,6 +15,9 @@
 
 __version__ = '0.5.1'
 
+#TODO: logscan should import logscan.py
+#TODO: without date get specified time for everyday periodically
+
 import os
 import re
 import argparse
